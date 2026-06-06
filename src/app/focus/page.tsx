@@ -9,9 +9,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition, AnimatedCard } from '@/components/ui/animated-card';
 import { FocusMode } from '@/types';
 import type { FocusSession } from '@/types';
-import { generateId, getToday, formatDuration } from '@/lib/utils';
+import { generateId, getToday } from '@/lib/utils';
 import { saveFocusSession, getFocusStreak, getCompletedFocusSessions } from '@/services/storage';
-import { Play, Pause, Square, RotateCcw, Flame, Trophy } from 'lucide-react';
+import { Play, Pause, Square, Flame, Trophy } from 'lucide-react';
 
 const MODE_CONFIG = {
   [FocusMode.Short]: { label: 'Sprint', description: '25 min focused study', emoji: '⚡' },
@@ -47,13 +47,11 @@ export default function FocusPage() {
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current);
     }
-
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [isRunning, isPaused, timeLeft]);
 
-  // Timer completion
   useEffect(() => {
     if (timeLeft === 0 && isRunning) {
       handleComplete();
@@ -66,13 +64,8 @@ export default function FocusPage() {
     setTimeLeft(selectedMode * 60);
     setIsRunning(true);
     setIsPaused(false);
-
     const session: FocusSession = {
-      id,
-      mode: selectedMode,
-      startedAt: new Date().toISOString(),
-      completed: false,
-      date: getToday(),
+      id, mode: selectedMode, startedAt: new Date().toISOString(), completed: false, date: getToday(),
     };
     saveFocusSession(session);
   };
@@ -80,16 +73,11 @@ export default function FocusPage() {
   const handleComplete = useCallback(() => {
     if (sessionId) {
       const session: FocusSession = {
-        id: sessionId,
-        mode: selectedMode,
-        startedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString(),
-        completed: true,
-        date: getToday(),
+        id: sessionId, mode: selectedMode, startedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString(), completed: true, date: getToday(),
       };
       saveFocusSession(session);
     }
-
     setIsRunning(false);
     setIsPaused(false);
     setSessionId(null);
@@ -123,20 +111,20 @@ export default function FocusPage() {
   return (
     <PageTransition>
       <div className="max-w-lg mx-auto py-4">
-        <h1 className="text-2xl font-bold text-text mb-2">Focus Session</h1>
-        <p className="text-muted text-sm mb-8">Deep work builds deep understanding.</p>
+        <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--c-text)' }}>Focus Session</h1>
+        <p className="text-sm mb-8" style={{ color: 'var(--c-text-muted)' }}>Deep work builds deep understanding.</p>
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3 mb-8">
           <AnimatedCard className="text-center py-4" delay={0.1}>
-            <Flame className="w-5 h-5 text-primary mx-auto mb-1" />
-            <p className="text-2xl font-bold text-text">{streak}</p>
-            <p className="text-[11px] text-muted">Day Streak</p>
+            <Flame className="w-5 h-5 mx-auto mb-1" style={{ color: 'var(--c-primary)' }} />
+            <p className="text-2xl font-bold" style={{ color: 'var(--c-text)' }}>{streak}</p>
+            <p className="text-[11px]" style={{ color: 'var(--c-text-muted)' }}>Day Streak</p>
           </AnimatedCard>
           <AnimatedCard className="text-center py-4" delay={0.2}>
-            <Trophy className="w-5 h-5 text-primary mx-auto mb-1" />
-            <p className="text-2xl font-bold text-text">{completedToday}</p>
-            <p className="text-[11px] text-muted">Today</p>
+            <Trophy className="w-5 h-5 mx-auto mb-1" style={{ color: 'var(--c-primary)' }} />
+            <p className="text-2xl font-bold" style={{ color: 'var(--c-text)' }}>{completedToday}</p>
+            <p className="text-[11px]" style={{ color: 'var(--c-text-muted)' }}>Today</p>
           </AnimatedCard>
         </div>
 
@@ -150,17 +138,17 @@ export default function FocusPage() {
                 <motion.button
                   key={value}
                   onClick={() => handleModeSelect(mode)}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${
-                    isSelected
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/30 bg-card'
-                  }`}
+                  className="flex flex-col items-center gap-2 p-4 rounded-2xl transition-all"
+                  style={{
+                    background: isSelected ? 'var(--c-primary-soft)' : 'var(--bg-card)',
+                    border: isSelected ? '2px solid var(--c-primary)' : '1px solid var(--c-border)',
+                  }}
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                 >
                   <span className="text-2xl">{config.emoji}</span>
-                  <span className="text-sm font-medium text-text">{config.label}</span>
-                  <span className="text-[10px] text-muted">{config.description}</span>
+                  <span className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>{config.label}</span>
+                  <span className="text-[10px]" style={{ color: 'var(--c-text-muted)' }}>{config.description}</span>
                 </motion.button>
               );
             })}
@@ -171,38 +159,21 @@ export default function FocusPage() {
         <div className="flex flex-col items-center">
           <div className="relative w-64 h-64 mb-8">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 260 260">
-              <circle
-                cx="130"
-                cy="130"
-                r="120"
-                fill="none"
-                stroke="var(--border)"
-                strokeWidth="6"
-              />
+              <circle cx="130" cy="130" r="120" fill="none" stroke="var(--c-border)" strokeWidth="6" />
               <motion.circle
-                cx="130"
-                cy="130"
-                r="120"
-                fill="none"
-                stroke="var(--primary)"
-                strokeWidth="6"
-                strokeLinecap="round"
+                cx="130" cy="130" r="120" fill="none"
+                stroke="var(--c-primary)" strokeWidth="6" strokeLinecap="round"
                 strokeDasharray={circumference}
                 animate={{ strokeDashoffset }}
                 transition={{ duration: 0.5, ease: 'linear' }}
               />
             </svg>
-
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-5xl font-bold text-text tabular-nums">
+              <span className="text-5xl font-bold tabular-nums" style={{ color: 'var(--c-text)' }}>
                 {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
               </span>
-              <span className="text-xs text-muted mt-2">
-                {isRunning
-                  ? isPaused
-                    ? 'Paused'
-                    : 'Focusing...'
-                  : MODE_CONFIG[selectedMode].label}
+              <span className="text-xs mt-2" style={{ color: 'var(--c-text-muted)' }}>
+                {isRunning ? (isPaused ? 'Paused' : 'Focusing...') : MODE_CONFIG[selectedMode].label}
               </span>
             </div>
           </div>
@@ -212,8 +183,7 @@ export default function FocusPage() {
             {!isRunning ? (
               <motion.button
                 onClick={handleStart}
-                className="flex items-center gap-2 px-8 py-4 bg-primary text-background
-                  rounded-2xl text-base font-medium hover:bg-primary-hover transition-colors"
+                className="mf-btn-primary px-8 py-4 text-base"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -223,30 +193,37 @@ export default function FocusPage() {
               <>
                 <motion.button
                   onClick={handlePause}
-                  className="p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-all"
+                  className="p-4 rounded-xl transition-all"
+                  style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--c-border)',
+                  }}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
                   {isPaused ? (
-                    <Play className="w-5 h-5 text-primary" />
+                    <Play className="w-5 h-5" style={{ color: 'var(--c-primary)' }} />
                   ) : (
-                    <Pause className="w-5 h-5 text-text" />
+                    <Pause className="w-5 h-5" style={{ color: 'var(--c-text)' }} />
                   )}
                 </motion.button>
                 <motion.button
                   onClick={handleStop}
-                  className="p-4 rounded-xl bg-destructive/10 border border-destructive/20
-                    hover:bg-destructive/20 transition-all"
+                  className="p-4 rounded-xl transition-all"
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                  }}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <Square className="w-5 h-5 text-destructive" />
+                  <Square className="w-5 h-5" style={{ color: '#EF4444' }} />
                 </motion.button>
               </>
             )}
           </div>
 
-          {/* Completion animation */}
+          {/* Completion */}
           <AnimatePresence>
             {timeLeft === 0 && !isRunning && completedToday > 0 && (
               <motion.div
@@ -255,8 +232,8 @@ export default function FocusPage() {
                 exit={{ opacity: 0 }}
                 className="mt-8 text-center"
               >
-                <p className="text-lg font-semibold text-primary mb-1">🎉 Session Complete!</p>
-                <p className="text-sm text-muted">Great focus. You earned this break.</p>
+                <p className="text-lg font-semibold mb-1" style={{ color: 'var(--c-primary)' }}>🎉 Session Complete!</p>
+                <p className="text-sm" style={{ color: 'var(--c-text-muted)' }}>Great focus. You earned this break.</p>
               </motion.div>
             )}
           </AnimatePresence>

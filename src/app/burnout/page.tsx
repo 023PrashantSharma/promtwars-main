@@ -19,7 +19,6 @@ import {
   AlertTriangle,
   AlertOctagon,
   Loader2,
-  TrendingUp,
   Target,
   Zap,
 } from 'lucide-react';
@@ -96,6 +95,16 @@ export default function BurnoutPage() {
       setTriggers(triggerResult);
     } catch (error) {
       console.error('Burnout analysis failed:', error);
+      // Fallback to local calculation
+      const simple = calculateBurnoutScore(recentEntries);
+      setBurnoutData({
+        level: simple.level,
+        score: simple.score,
+        factors: [],
+        explanation: 'Analysis based on your recent wellness data.',
+        recommendations: ['Prioritize sleep', 'Take regular breaks', 'Practice deep breathing'],
+        date: new Date().toISOString(),
+      });
     } finally {
       setIsLoading(false);
     }
@@ -106,18 +115,18 @@ export default function BurnoutPage() {
   return (
     <PageTransition>
       <div className="max-w-3xl mx-auto py-4">
-        <h1 className="text-2xl font-bold text-text mb-2 flex items-center gap-2">
-          <Brain className="w-6 h-6 text-primary" />
+        <h1 className="text-2xl font-bold mb-2 flex items-center gap-2" style={{ color: 'var(--c-text)' }}>
+          <Brain className="w-6 h-6" style={{ color: 'var(--c-primary)' }} />
           Burnout Analysis
         </h1>
-        <p className="text-muted text-sm mb-8">
+        <p className="text-sm mb-8" style={{ color: 'var(--c-text-muted)' }}>
           AI-powered analysis of your burnout risk based on your wellness data.
         </p>
 
         {isLoading ? (
           <AnimatedCard className="text-center py-16" hover={false}>
-            <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-4" />
-            <p className="text-muted">Analyzing your wellness patterns...</p>
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" style={{ color: 'var(--c-primary)' }} />
+            <p style={{ color: 'var(--c-text-muted)' }}>Analyzing your wellness patterns...</p>
           </AnimatedCard>
         ) : (
           <div className="space-y-6">
@@ -157,12 +166,12 @@ export default function BurnoutPage() {
                         ? 'Moderate Risk'
                         : 'High Risk'}
                     </p>
-                    <p className="text-xs text-muted">Score: {burnoutData.score}/100</p>
+                    <p className="text-xs" style={{ color: 'var(--c-text-muted)' }}>Score: {burnoutData.score}/100</p>
                   </div>
 
                   {/* Explanation */}
                   <div className="flex-1">
-                    <p className="text-sm text-text leading-relaxed mb-4">
+                    <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--c-text)' }}>
                       {burnoutData.explanation}
                     </p>
 
@@ -172,16 +181,20 @@ export default function BurnoutPage() {
                         {burnoutData.factors.map((factor, i) => (
                           <div
                             key={i}
-                            className="flex items-center gap-3 p-3 rounded-xl bg-surface border border-border"
+                            className="flex items-center gap-3 p-3 rounded-xl"
+                            style={{
+                              background: 'var(--bg-elevated)',
+                              border: '1px solid var(--c-border)',
+                            }}
                           >
                             <div className="w-2 h-2 rounded-full" style={{
                               backgroundColor: scoreToColor(100 - factor.severity)
                             }} />
                             <div className="flex-1">
-                              <p className="text-xs font-medium text-text">{factor.name}</p>
-                              <p className="text-[11px] text-muted">{factor.description}</p>
+                              <p className="text-xs font-medium" style={{ color: 'var(--c-text)' }}>{factor.name}</p>
+                              <p className="text-[11px]" style={{ color: 'var(--c-text-muted)' }}>{factor.description}</p>
                             </div>
-                            <div className="w-12 h-1.5 bg-border rounded-full overflow-hidden">
+                            <div className="w-12 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--c-border)' }}>
                               <motion.div
                                 className="h-full rounded-full"
                                 style={{ backgroundColor: scoreToColor(100 - factor.severity) }}
@@ -203,24 +216,29 @@ export default function BurnoutPage() {
             {burnoutData && burnoutData.recommendations.length > 0 && (
               <AnimatedCard hover={false} delay={0.2}>
                 <div className="flex items-center gap-2 mb-4">
-                  <Target className="w-4 h-4 text-primary" />
-                  <p className="text-xs uppercase tracking-wider text-muted font-medium">
-                    Recommendations
-                  </p>
+                  <Target className="w-4 h-4" style={{ color: 'var(--c-primary)' }} />
+                  <p className="mf-label mb-0">Recommendations</p>
                 </div>
                 <div className="space-y-3">
                   {burnoutData.recommendations.map((rec, i) => (
                     <motion.div
                       key={i}
-                      className="flex items-start gap-3 p-3 rounded-xl bg-surface border border-border"
+                      className="flex items-start gap-3 p-3 rounded-xl"
+                      style={{
+                        background: 'var(--bg-elevated)',
+                        border: '1px solid var(--c-border)',
+                      }}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.4 + i * 0.1 }}
                     >
-                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-xs text-primary font-medium">{i + 1}</span>
+                      <div
+                        className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                        style={{ background: 'var(--c-primary-soft)' }}
+                      >
+                        <span className="text-xs font-medium" style={{ color: 'var(--c-primary)' }}>{i + 1}</span>
                       </div>
-                      <p className="text-sm text-text">{rec}</p>
+                      <p className="text-sm" style={{ color: 'var(--c-text)' }}>{rec}</p>
                     </motion.div>
                   ))}
                 </div>
@@ -231,22 +249,21 @@ export default function BurnoutPage() {
             {triggers.length > 0 && (
               <AnimatedCard hover={false} delay={0.3}>
                 <div className="flex items-center gap-2 mb-4">
-                  <Zap className="w-4 h-4 text-warning" />
-                  <p className="text-xs uppercase tracking-wider text-muted font-medium">
-                    Identified Stress Triggers
-                  </p>
+                  <Zap className="w-4 h-4" style={{ color: '#F59E0B' }} />
+                  <p className="mf-label mb-0">Identified Stress Triggers</p>
                 </div>
                 <div className="space-y-3">
                   {triggers.map((trigger, i) => (
                     <motion.div
                       key={trigger.id}
-                      className="p-4 rounded-xl border border-border"
+                      className="p-4 rounded-xl"
+                      style={{ border: '1px solid var(--c-border)' }}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.5 + i * 0.1 }}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium text-text">{trigger.trigger}</p>
+                        <p className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>{trigger.trigger}</p>
                         <span
                           className="text-[10px] px-2 py-0.5 rounded-full font-medium"
                           style={{
@@ -257,8 +274,8 @@ export default function BurnoutPage() {
                           {trigger.severity}
                         </span>
                       </div>
-                      <p className="text-xs text-muted leading-relaxed">{trigger.insight}</p>
-                      <p className="text-[10px] text-muted/60 mt-2">
+                      <p className="text-xs leading-relaxed" style={{ color: 'var(--c-text-muted)' }}>{trigger.insight}</p>
+                      <p className="text-[10px] mt-2" style={{ color: 'var(--c-text-muted)', opacity: 0.6 }}>
                         Detected {trigger.frequency} times
                       </p>
                     </motion.div>
