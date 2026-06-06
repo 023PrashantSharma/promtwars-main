@@ -1,24 +1,20 @@
 'use client';
 
-/* ============================================
-   Dashboard — Main Page (Wellness Redesign)
-   ============================================ */
-
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { PageTransition, AnimatedCard } from '@/components/ui/animated-card';
 import { ParticleField } from '@/components/ui/particle-field';
-import { getRecentMoodEntries, getPreferences, getJournalEntries, getFocusStreak } from '@/services/storage';
+import { getRecentMoodEntries, getPreferences, getJournalEntries, getFocusStreak, getChatHistory } from '@/services/storage';
 import { calculateWellnessScore, calculateBurnoutScore, generateRecoverySuggestions } from '@/services/wellness-engine';
 import { getGreeting, scoreToColor, daysUntil } from '@/lib/utils';
-import { MOOD_CONFIG, RiskLevel, ExamType, DEFAULT_EXAM_DATES, EnergyLevel } from '@/types';
-import type { MoodEntry, UserPreferences, WellnessScore, JournalEntry } from '@/types';
+import { MOOD_CONFIG, RiskLevel, ExamType, DEFAULT_EXAM_DATES } from '@/types';
+import type { MoodEntry, UserPreferences, WellnessScore, JournalEntry, ChatMessage } from '@/types';
 import { savePreferences } from '@/services/storage';
 import {
   Heart, BookOpen, MessageCircle, Timer, Shield, AlertTriangle,
-  AlertOctagon, ArrowRight, Calendar, Sparkles, Flame, ChevronDown,
-  TrendingUp, Moon as MoonIcon,
+  AlertOctagon, ArrowRight, ChevronRight, TrendingUp, Moon as MoonIcon,
+  Smile, Bell, Mic, Send, Droplets, Wind, Footprints, Battery,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -27,6 +23,7 @@ export default function DashboardPage() {
   const [journals, setJournals] = useState<JournalEntry[]>([]);
   const [focusStreak, setFocusStreak] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [chatPreview, setChatPreview] = useState<ChatMessage[]>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -34,6 +31,7 @@ export default function DashboardPage() {
     setPreferences(getPreferences());
     setJournals(getJournalEntries().slice(0, 3));
     setFocusStreak(getFocusStreak());
+    setChatPreview(getChatHistory().slice(-2));
   }, []);
 
   if (!mounted) return null;
@@ -41,139 +39,252 @@ export default function DashboardPage() {
   const wellnessScore = calculateWellnessScore(moodEntries);
   const burnoutRisk = calculateBurnoutScore(moodEntries);
   const greeting = getGreeting();
-  const userName = preferences?.name || 'there';
+  const userName = preferences?.name || 'Prashant';
   const suggestions = generateRecoverySuggestions(moodEntries[0]);
-  const selectedExam = preferences?.selectedExam || null;
-  const examDate = selectedExam ? (preferences?.customExamDate || DEFAULT_EXAM_DATES[selectedExam]) : null;
-  const daysLeft = examDate ? daysUntil(examDate) : null;
+  const latestMood = moodEntries[0];
+  const avgSleep = moodEntries.length > 0
+    ? (moodEntries.reduce((a, e) => a + e.sleepHours, 0) / moodEntries.length).toFixed(1)
+    : '—';
+  const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  // Mood label
+  const moodLabel = latestMood
+    ? MOOD_CONFIG[latestMood.mood as keyof typeof MOOD_CONFIG]?.label || 'Okay'
+    : '—';
+  const moodEmoji = latestMood
+    ? MOOD_CONFIG[latestMood.mood as keyof typeof MOOD_CONFIG]?.emoji || '😐'
+    : '😐';
 
   return (
     <PageTransition>
-      <div className="relative min-h-[calc(100vh-4rem)]">
-        {/* Ambient particles */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ borderRadius: 'var(--radius-card)' }}>
-          <ParticleField particleCount={18} />
+      <div className="relative">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <ParticleField particleCount={12} />
         </div>
         <div className="mf-spotlight" />
 
-        <div className="relative z-10 space-y-8">
-          {/* ===== Hero Greeting ===== */}
-          <motion.div
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <h1
-              className="text-3xl md:text-4xl font-bold mb-2"
-              style={{ color: 'var(--c-text)' }}
-            >
-              {greeting},{' '}
-              <span className="text-gradient">{userName}</span>
-              <span className="ml-2">✨</span>
-            </h1>
-            <p className="text-base" style={{ color: 'var(--c-text-secondary)' }}>
-              {moodEntries.length > 0
-                ? "Here's how your wellness is looking this week."
-                : 'Welcome to MindFlow. Start your first check-in to unlock your wellness insights.'}
-            </p>
-          </motion.div>
+        <div className="relative z-10 space-y-5">
+          {/* ===== HEADER ===== */}
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--c-text)' }}>
+                {greeting}, {userName} <span>👋</span>
+              </h1>
+              <p className="text-sm" style={{ color: 'var(--c-text-muted)' }}>
+                You&apos;ve got this. Small steps, every day.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs px-3 py-1.5 rounded-lg" style={{ background: 'var(--bg-card)', border: '1px solid var(--c-border)', color: 'var(--c-text-secondary)' }}>
+                {today}
+              </span>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--c-border)' }}>
+                <Bell className="w-4 h-4" style={{ color: 'var(--c-text-muted)' }} />
+              </div>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: 'var(--c-primary-soft)', color: 'var(--c-primary)' }}>
+                {userName.charAt(0)}
+              </div>
+            </div>
+          </div>
 
-          {/* ===== Row 1: Score, Burnout, Exam ===== */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Wellness Score Ring */}
-            <AnimatedCard delay={0.1} hover={false}>
-              <p className="mf-label">Wellness Score</p>
-              <div className="flex flex-col items-center pt-2">
-                <WellnessRing score={wellnessScore} />
-                <div className="w-full mt-5 space-y-2.5">
-                  {Object.entries(wellnessScore.breakdown).map(([key, value]) => (
-                    <div key={key} className="flex items-center justify-between">
-                      <span className="text-xs capitalize" style={{ color: 'var(--c-text-muted)' }}>
-                        {key.replace(/([A-Z])/g, ' $1').trim()}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-20 h-[5px] rounded-full overflow-hidden"
-                          style={{ background: 'var(--c-border)' }}
-                        >
-                          <motion.div
-                            className="h-full rounded-full"
-                            style={{ backgroundColor: scoreToColor(value) }}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${value}%` }}
-                            transition={{ duration: 1, delay: 0.8 }}
-                          />
+          {/* ===== ROW 1: 4 STAT CARDS ===== */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              label="Wellness Score"
+              value={<>{wellnessScore.overall}<span className="text-sm font-normal" style={{ color: 'var(--c-text-muted)' }}>/100</span></>}
+              sub={moodEntries.length > 1 ? 'Better than yesterday' : 'Start tracking'}
+              trend={moodEntries.length > 1 ? '+12%' : undefined}
+              delay={0.1}
+            />
+            <StatCard
+              label="Burnout Risk"
+              value={<span style={{ color: burnoutRisk.level === RiskLevel.Low ? 'var(--c-primary)' : burnoutRisk.level === RiskLevel.Moderate ? '#F59E0B' : '#EF4444' }}>
+                {burnoutRisk.level === RiskLevel.Low ? '● Low' : burnoutRisk.level === RiskLevel.Moderate ? '● Moderate' : '● High'}
+              </span>}
+              sub={burnoutRisk.level === RiskLevel.Low ? "You're doing good. Keep it up!" : 'Take some breaks'}
+              icon={<Shield className="w-4 h-4" style={{ color: 'var(--c-primary)' }} />}
+              delay={0.15}
+            />
+            <StatCard
+              label="Mood"
+              value={<span className="flex items-center gap-1.5">{moodEmoji} {moodLabel}</span>}
+              sub={moodEntries.length > 0 ? 'More positive than usual' : 'No data yet'}
+              delay={0.2}
+            />
+            <StatCard
+              label="Sleep"
+              value={<span className="flex items-center gap-1.5"><MoonIcon className="w-4 h-4" style={{ color: '#818CF8' }} /> {avgSleep} hrs</span>}
+              sub={Number(avgSleep) >= 7 ? 'Great sleep quality' : 'Needs a little improvement'}
+              delay={0.25}
+            />
+          </div>
+
+          {/* ===== ROW 2: CHART + BALANCE + QUICK ACTIONS ===== */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* Wellness Overview — span 5 */}
+            <div className="lg:col-span-5">
+              <AnimatedCard delay={0.15} hover={false}>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>Wellness Overview</p>
+                    <p className="text-[11px]" style={{ color: 'var(--c-text-muted)' }}>Your trends from the last 7 days</p>
+                  </div>
+                  <span className="text-[11px] px-2 py-1 rounded-md" style={{ background: 'var(--bg-elevated)', color: 'var(--c-text-muted)' }}>7 Days</span>
+                </div>
+                {/* Legend */}
+                <div className="flex items-center gap-4 mb-3">
+                  <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--c-text-muted)' }}>
+                    <span className="w-2 h-2 rounded-full" style={{ background: '#4ADE80' }} /> Mood
+                  </span>
+                  <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--c-text-muted)' }}>
+                    <span className="w-2 h-2 rounded-full" style={{ background: '#F59E0B' }} /> Stress
+                  </span>
+                  <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--c-text-muted)' }}>
+                    <span className="w-2 h-2 rounded-full" style={{ background: '#818CF8' }} /> Energy
+                  </span>
+                </div>
+                <MiniChart entries={moodEntries} />
+              </AnimatedCard>
+            </div>
+
+            {/* Study-Wellness Balance — span 3 */}
+            <div className="lg:col-span-3">
+              <AnimatedCard delay={0.2} hover={false}>
+                <p className="text-sm font-semibold mb-4" style={{ color: 'var(--c-text)' }}>Study · Wellness Balance</p>
+                <div className="flex flex-col items-center">
+                  <WellnessRing score={wellnessScore} />
+                  <p className="text-sm font-semibold mt-3" style={{ color: 'var(--c-primary)' }}>
+                    {wellnessScore.overall >= 70 ? 'Great balance!' : wellnessScore.overall >= 50 ? 'Getting there' : 'Needs attention'}
+                  </p>
+                  <p className="text-[11px] text-center mt-1" style={{ color: 'var(--c-text-muted)' }}>
+                    Keep maintaining your study and self-care harmony.
+                  </p>
+                </div>
+              </AnimatedCard>
+            </div>
+
+            {/* Quick Actions — span 4 */}
+            <div className="lg:col-span-4">
+              <AnimatedCard delay={0.25} hover={false}>
+                <p className="text-sm font-semibold mb-3" style={{ color: 'var(--c-text)' }}>Quick Actions</p>
+                <div className="space-y-1">
+                  {ACTIONS.map((a, i) => {
+                    const Icon = a.icon;
+                    return (
+                      <Link key={a.href} href={a.href} className="mf-action-row">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: a.bg }}>
+                          <Icon className="w-4 h-4" style={{ color: a.color }} />
                         </div>
-                        <span className="text-xs w-6 text-right font-medium" style={{ color: 'var(--c-text-secondary)' }}>
-                          {value}
-                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-medium" style={{ color: 'var(--c-text)' }}>{a.label}</p>
+                          <p className="text-[11px]" style={{ color: 'var(--c-text-muted)' }}>{a.desc}</p>
+                        </div>
+                        <ArrowRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--c-text-muted)' }} />
+                      </Link>
+                    );
+                  })}
+                </div>
+              </AnimatedCard>
+            </div>
+          </div>
+
+          {/* ===== ROW 3: JOURNAL + RECOVERY + AI COACH ===== */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Recent Journal */}
+            <AnimatedCard delay={0.3} hover={false}>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>Recent Journal</p>
+                <Link href="/journal" className="text-[11px] font-medium" style={{ color: 'var(--c-text-muted)' }}>View all</Link>
+              </div>
+              {journals.length === 0 ? (
+                <div className="flex flex-col items-center py-6 text-center">
+                  <BookOpen className="w-8 h-8 mb-2" style={{ color: 'var(--c-text-muted)', opacity: 0.3 }} />
+                  <p className="text-xs mb-1" style={{ color: 'var(--c-text-muted)' }}>No journal entries yet</p>
+                  <p className="text-[11px] mb-3" style={{ color: 'var(--c-text-muted)' }}>Start writing to receive AI-powered reflections.</p>
+                  <Link href="/journal" className="mf-btn-primary text-xs px-4 py-2">Write your first entry</Link>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {journals.map((entry) => (
+                    <div key={entry.id} className="flex items-start gap-3 p-2.5 rounded-lg" style={{ background: 'var(--bg-elevated)' }}>
+                      <div className="text-lg flex-shrink-0">📝</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs line-clamp-1 font-medium" style={{ color: 'var(--c-text)' }}>
+                          {entry.content.slice(0, 60)}{entry.content.length > 60 ? '...' : ''}
+                        </p>
+                        <p className="text-[10px]" style={{ color: 'var(--c-text-muted)' }}>
+                          {new Date(entry.createdAt).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+                        </p>
                       </div>
+                      {entry.emotionTags[0] && <span className="mf-badge text-[10px]">{entry.emotionTags[0]}</span>}
                     </div>
                   ))}
                 </div>
-                <p className="text-xs mt-4 text-center leading-relaxed" style={{ color: 'var(--c-text-muted)' }}>
-                  {wellnessScore.explanation}
-                </p>
+              )}
+            </AnimatedCard>
+
+            {/* Recovery Suggestions */}
+            <AnimatedCard delay={0.35} hover={false}>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>Recovery Suggestions</p>
+                <span className="text-[11px] font-medium" style={{ color: 'var(--c-text-muted)' }}>View all</span>
+              </div>
+              <div className="space-y-2">
+                {suggestions.slice(0, 4).map((s) => (
+                  <div key={s.id} className="mf-action-row py-2">
+                    <div className="text-lg flex-shrink-0">{s.icon}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium" style={{ color: 'var(--c-text)' }}>{s.title}</p>
+                      <p className="text-[10px] line-clamp-1" style={{ color: 'var(--c-text-muted)' }}>{s.description}</p>
+                    </div>
+                    {s.duration && <span className="mf-badge text-[10px]">{s.duration}</span>}
+                  </div>
+                ))}
               </div>
             </AnimatedCard>
 
-            {/* Burnout Risk */}
-            <AnimatedCard delay={0.2} hover={false}>
-              <p className="mf-label">Burnout Risk</p>
-              <BurnoutGauge risk={burnoutRisk} />
-            </AnimatedCard>
-
-            {/* Exam Countdown */}
-            <AnimatedCard delay={0.3} hover={false}>
-              <p className="mf-label">Exam Countdown</p>
-              <ExamCountdown
-                selectedExam={selectedExam}
-                daysLeft={daysLeft}
-                onSelectExam={(exam: ExamType) => {
-                  savePreferences({ selectedExam: exam });
-                  setPreferences({ ...preferences!, selectedExam: exam });
-                }}
-              />
-            </AnimatedCard>
-          </div>
-
-          {/* ===== Row 2: Mood + Quick Actions ===== */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Mood Overview */}
-            <AnimatedCard delay={0.2} hover={false}>
-              <p className="mf-label">Mood — Last 7 Days</p>
-              <MoodChart entries={moodEntries} />
-            </AnimatedCard>
-
-            {/* Quick Actions */}
-            <AnimatedCard delay={0.3} hover={false}>
-              <p className="mf-label">Quick Actions</p>
-              <QuickActionGrid />
-            </AnimatedCard>
-          </div>
-
-          {/* ===== Row 3: Journals + Recovery ===== */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Recent Journal */}
+            {/* AI Coach Preview */}
             <AnimatedCard delay={0.4} hover={false}>
-              <div className="flex items-center justify-between mb-4">
-                <p className="mf-label mb-0">Recent Journal</p>
-                <Link
-                  href="/journal"
-                  className="text-xs font-medium flex items-center gap-1"
-                  style={{ color: 'var(--c-primary)' }}
-                >
-                  View all <ArrowRight className="w-3 h-3" />
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>AI Coach</p>
+                <Link href="/coach" className="text-[11px] font-medium" style={{ color: 'var(--c-text-muted)' }}>View all</Link>
+              </div>
+              <div className="space-y-3 mb-4">
+                {chatPreview.length > 0 ? (
+                  chatPreview.map(msg => (
+                    <div key={msg.id} className={msg.role === 'user' ? 'mf-bubble-user text-xs' : 'mf-bubble-ai text-xs'}>
+                      {msg.content.slice(0, 120)}{msg.content.length > 120 ? '...' : ''}
+                    </div>
+                  ))
+                ) : (
+                  <div className="mf-bubble-ai text-xs">
+                    <div className="flex items-start gap-2">
+                      <span className="text-base">🌱</span>
+                      <p>It&apos;s okay to have tough days. Progress isn&apos;t always linear. You&apos;re showing up, and that matters a lot.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  className="mf-input text-xs py-2"
+                  placeholder="Ask anything..."
+                  readOnly
+                  onClick={() => window.location.href = '/coach'}
+                />
+                <Link href="/coach" className="p-2 rounded-lg flex-shrink-0" style={{ background: 'var(--c-primary)' }}>
+                  <Send className="w-4 h-4" style={{ color: '#0B0B0F' }} />
                 </Link>
               </div>
-              <JournalList entries={journals} />
             </AnimatedCard>
+          </div>
 
-            {/* Recovery */}
-            <AnimatedCard delay={0.5} hover={false}>
-              <p className="mf-label">Recovery Suggestions</p>
-              <RecoveryList suggestions={suggestions.slice(0, 4)} />
-            </AnimatedCard>
+          {/* ===== FOOTER ===== */}
+          <div className="text-center pt-4 pb-2">
+            <p className="text-[11px] italic" style={{ color: 'var(--c-text-muted)', opacity: 0.6 }}>
+              MindFlow is not a substitute for professional medical advice.<br />
+              If you&apos;re in crisis, please reach out to a trusted adult or helpline.
+            </p>
           </div>
         </div>
       </div>
@@ -181,322 +292,119 @@ export default function DashboardPage() {
   );
 }
 
-/* ---- Subcomponents ---- */
+/* ========== Sub Components ========== */
+
+function StatCard({ label, value, sub, trend, icon, delay }: {
+  label: string; value: React.ReactNode; sub: string;
+  trend?: string; icon?: React.ReactNode; delay: number;
+}) {
+  return (
+    <AnimatedCard delay={delay} hover={false}>
+      <p className="text-[11px] font-medium mb-2" style={{ color: 'var(--c-text-muted)' }}>{label}</p>
+      <div className="flex items-center gap-2 mb-1">
+        {icon}
+        <span className="text-xl font-bold" style={{ color: 'var(--c-text)' }}>{value}</span>
+        {trend && (
+          <span className="flex items-center gap-0.5 text-[11px] font-medium" style={{ color: 'var(--c-primary)' }}>
+            <TrendingUp className="w-3 h-3" /> {trend}
+          </span>
+        )}
+      </div>
+      <p className="text-[11px]" style={{ color: 'var(--c-text-muted)' }}>{sub}</p>
+    </AnimatedCard>
+  );
+}
 
 function WellnessRing({ score }: { score: WellnessScore }) {
-  const circumference = 2 * Math.PI * 54;
-  const strokeDashoffset = circumference - (score.overall / 100) * circumference;
+  const r = 50; const c = 2 * Math.PI * r;
+  const offset = c - (score.overall / 100) * c;
   const color = scoreToColor(score.overall);
-
   return (
-    <div className="relative w-36 h-36">
+    <div className="relative w-32 h-32">
       <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r="54" fill="none" stroke="var(--c-border)" strokeWidth="8" />
-        <motion.circle
-          cx="60" cy="60" r="54" fill="none" stroke={color} strokeWidth="8" strokeLinecap="round"
-          strokeDasharray={circumference}
-          initial={{ strokeDashoffset: circumference }}
-          animate={{ strokeDashoffset }}
-          transition={{ duration: 1.5, ease: 'easeOut', delay: 0.5 }}
-        />
+        <circle cx="60" cy="60" r={r} fill="none" stroke="var(--c-border)" strokeWidth="7" />
+        <motion.circle cx="60" cy="60" r={r} fill="none" stroke={color} strokeWidth="7" strokeLinecap="round"
+          strokeDasharray={c} initial={{ strokeDashoffset: c }} animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1.2, ease: 'easeOut', delay: 0.5 }} />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <motion.span
-          className="text-3xl font-bold"
-          style={{ color }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-        >
-          {score.overall}
-        </motion.span>
-        <span className="text-[11px]" style={{ color: 'var(--c-text-muted)' }}>/100</span>
+        <span className="text-2xl font-bold" style={{ color: 'var(--c-text)' }}>{score.overall}</span>
+        <span className="text-[10px]" style={{ color: 'var(--c-text-muted)' }}>/100</span>
       </div>
     </div>
   );
 }
 
-function BurnoutGauge({ risk }: { risk: { score: number; level: RiskLevel } }) {
-  const cfg = {
-    [RiskLevel.Low]: { icon: Shield, label: 'Low Risk', color: '#4ADE80', msg: "You're doing great! Keep it up." },
-    [RiskLevel.Moderate]: { icon: AlertTriangle, label: 'Moderate Risk', color: '#F59E0B', msg: 'Some areas need attention. Take a break soon.' },
-    [RiskLevel.High]: { icon: AlertOctagon, label: 'High Risk', color: '#EF4444', msg: 'Please prioritize rest. Your wellbeing matters most.' },
-  }[risk.level];
-  const Icon = cfg.icon;
+function MiniChart({ entries }: { entries: MoodEntry[] }) {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const last7 = [...entries].slice(0, 7).reverse();
 
-  return (
-    <div className="flex flex-col items-center justify-center pt-4">
-      <motion.div
-        className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
-        style={{ background: `${cfg.color}15` }}
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: 'spring', delay: 0.4 }}
-      >
-        <Icon className="w-8 h-8" style={{ color: cfg.color }} />
-      </motion.div>
-      <motion.p
-        className="text-lg font-semibold mb-2"
-        style={{ color: cfg.color }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-      >
-        {cfg.label}
-      </motion.p>
-      <div className="w-full max-w-[200px] mb-3">
-        <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--c-border)' }}>
-          <motion.div
-            className="h-full rounded-full"
-            style={{ backgroundColor: cfg.color }}
-            initial={{ width: 0 }}
-            animate={{ width: `${risk.score}%` }}
-            transition={{ duration: 1, delay: 0.5 }}
-          />
-        </div>
-        <div className="flex justify-between mt-1">
-          <span className="text-[10px]" style={{ color: 'var(--c-text-muted)' }}>Safe</span>
-          <span className="text-[10px]" style={{ color: 'var(--c-text-muted)' }}>Critical</span>
-        </div>
-      </div>
-      <p className="text-xs text-center leading-relaxed" style={{ color: 'var(--c-text-muted)' }}>{cfg.msg}</p>
-    </div>
-  );
-}
-
-function ExamCountdown({ selectedExam, daysLeft, onSelectExam }: {
-  selectedExam: ExamType | null;
-  daysLeft: number | null;
-  onSelectExam: (exam: ExamType) => void;
-}) {
-  const [showPicker, setShowPicker] = useState(!selectedExam);
-
-  if (selectedExam && daysLeft !== null && !showPicker) {
+  if (last7.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center pt-4">
-        <button onClick={() => setShowPicker(true)} className="flex items-center gap-1 text-xs mb-3" style={{ color: 'var(--c-text-muted)' }}>
-          <Calendar className="w-3.5 h-3.5" /> {selectedExam} <ChevronDown className="w-3 h-3" />
-        </button>
-        <motion.div
-          className="text-5xl font-bold text-gradient mb-1"
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', delay: 0.5 }}
-        >
-          {daysLeft}
-        </motion.div>
-        <p className="text-sm mb-4" style={{ color: 'var(--c-text-muted)' }}>days remaining</p>
-        <p className="text-xs text-center italic leading-relaxed" style={{ color: 'var(--c-text-muted)' }}>
-          &ldquo;Every day of preparation is an investment in your future.&rdquo;
-        </p>
+      <div className="flex flex-col items-center justify-center py-8">
+        <p className="text-xs" style={{ color: 'var(--c-text-muted)' }}>No data yet. Complete a check-in to see trends.</p>
       </div>
     );
   }
+
+  // SVG line chart
+  const h = 120; const w = 300;
+  const padX = 30; const padY = 15;
+  const chartW = w - padX * 2;
+  const chartH = h - padY * 2;
+
+  const toPoints = (data: number[], max: number) =>
+    data.map((v, i) => ({
+      x: padX + (i / Math.max(data.length - 1, 1)) * chartW,
+      y: padY + chartH - (v / max) * chartH,
+    }));
+
+  const moodPts = toPoints(last7.map(e => e.mood), 5);
+  const stressPts = toPoints(last7.map(e => e.stress), 10);
+  const energyPts = toPoints(last7.map(e => e.energy), 5);
+
+  const toPath = (pts: { x: number; y: number }[]) =>
+    pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
 
   return (
     <div>
-      {!selectedExam && (
-        <div className="flex flex-col items-center py-4 mb-4">
-          <Calendar className="w-10 h-10 mb-2" style={{ color: 'var(--c-text-muted)', opacity: 0.4 }} />
-          <p className="text-sm text-center" style={{ color: 'var(--c-text-muted)' }}>
-            Select your exam
-          </p>
-        </div>
-      )}
-      <div className="grid grid-cols-2 gap-2">
-        {Object.values(ExamType).map((exam) => (
-          <motion.button
-            key={exam}
-            onClick={() => { onSelectExam(exam); setShowPicker(false); }}
-            className="px-3 py-2.5 rounded-xl text-xs font-medium transition-all"
-            style={{
-              background: selectedExam === exam ? 'var(--c-primary-soft)' : 'var(--bg-elevated)',
-              color: selectedExam === exam ? 'var(--c-primary)' : 'var(--c-text-muted)',
-              border: selectedExam === exam ? '1px solid var(--c-border-active)' : '1px solid var(--c-border)',
-            }}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-          >
-            {exam}
-          </motion.button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MoodChart({ entries }: { entries: MoodEntry[] }) {
-  if (entries.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8 text-center">
-        <div className="text-4xl mb-3">🌱</div>
-        <p className="text-sm" style={{ color: 'var(--c-text-muted)' }}>
-          No mood data yet. Start your first check-in to track your emotional patterns.
-        </p>
-      </div>
-    );
-  }
-
-  const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
-  const last7 = [...entries].slice(0, 7).reverse();
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-end justify-between gap-3 h-28 px-2">
-        {last7.map((entry, i) => {
-          const height = (entry.mood / 5) * 100;
-          const config = MOOD_CONFIG[entry.mood as keyof typeof MOOD_CONFIG];
-          return (
-            <div key={entry.id} className="flex-1 flex flex-col items-center gap-1">
-              {config && <span className="text-xs" title={config.label}>{config.emoji}</span>}
-              <motion.div
-                className="w-full rounded-lg"
-                style={{ backgroundColor: config?.color || 'var(--c-border)', opacity: 0.8, minHeight: 4 }}
-                initial={{ height: 0 }}
-                animate={{ height: `${height}%` }}
-                transition={{ duration: 0.6, delay: 0.3 + i * 0.08 }}
-              />
-              <span className="text-[10px]" style={{ color: 'var(--c-text-muted)' }}>
-                {new Date(entry.date).toLocaleDateString('en', { weekday: 'short' }).slice(0, 2)}
-              </span>
-            </div>
-          );
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 140 }}>
+        {/* Grid lines */}
+        {[0, 25, 50, 75, 100].map(pct => {
+          const y = padY + chartH - (pct / 100) * chartH;
+          return <line key={pct} x1={padX} y1={y} x2={w - padX} y2={y} stroke="var(--c-border)" strokeWidth="0.5" />;
         })}
-      </div>
-      <div className="grid grid-cols-3 gap-3 pt-3" style={{ borderTop: '1px solid var(--c-border)' }}>
-        <div className="text-center">
-          <p className="text-lg font-semibold" style={{ color: 'var(--c-text)' }}>
-            {entries.length > 0 ? MOOD_CONFIG[Math.round(avg(entries.map(e => e.mood))) as keyof typeof MOOD_CONFIG]?.emoji || '—' : '—'}
-          </p>
-          <p className="text-[10px]" style={{ color: 'var(--c-text-muted)' }}>Avg Mood</p>
-        </div>
-        <div className="text-center">
-          <p className="text-lg font-semibold" style={{ color: 'var(--c-text)' }}>
-            {entries.length > 0 ? `${avg(entries.map(e => e.sleepHours)).toFixed(1)}h` : '—'}
-          </p>
-          <p className="text-[10px]" style={{ color: 'var(--c-text-muted)' }}>Avg Sleep</p>
-        </div>
-        <div className="text-center">
-          <p className="text-lg font-semibold" style={{ color: 'var(--c-text)' }}>
-            {entries.length > 0 ? avg(entries.map(e => e.stress)).toFixed(1) : '—'}
-          </p>
-          <p className="text-[10px]" style={{ color: 'var(--c-text-muted)' }}>Avg Stress</p>
-        </div>
-      </div>
+        {/* Y-axis labels */}
+        {[0, 25, 50, 75, 100].map(pct => {
+          const y = padY + chartH - (pct / 100) * chartH;
+          return <text key={pct} x={padX - 8} y={y + 3} textAnchor="end" fontSize="8" fill="var(--c-text-muted)">{pct}</text>;
+        })}
+        {/* Lines */}
+        <motion.path d={toPath(moodPts)} fill="none" stroke="#4ADE80" strokeWidth="2" strokeLinecap="round"
+          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1, delay: 0.5 }} />
+        <motion.path d={toPath(stressPts)} fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round"
+          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1, delay: 0.6 }} />
+        <motion.path d={toPath(energyPts)} fill="none" stroke="#818CF8" strokeWidth="2" strokeLinecap="round"
+          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1, delay: 0.7 }} />
+        {/* Dots */}
+        {moodPts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="3" fill="#4ADE80" />)}
+        {/* X-axis */}
+        {last7.map((e, i) => {
+          const x = padX + (i / Math.max(last7.length - 1, 1)) * chartW;
+          const d = new Date(e.date);
+          return <text key={e.id} x={x} y={h - 2} textAnchor="middle" fontSize="8" fill="var(--c-text-muted)">
+            {d.toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+          </text>;
+        })}
+      </svg>
     </div>
   );
 }
 
 const ACTIONS = [
-  { href: '/check-in', label: 'Daily Check-in', desc: 'Record your mood & energy', icon: Heart, color: '#EF4444', bg: '#EF444415' },
-  { href: '/journal', label: 'Write Journal', desc: 'Reflect on your day', icon: BookOpen, color: '#8B5CF6', bg: '#8B5CF615' },
-  { href: '/coach', label: 'AI Coach', desc: 'Talk to your wellness coach', icon: MessageCircle, color: '#4ADE80', bg: '#4ADE8015' },
-  { href: '/focus', label: 'Focus Session', desc: 'Start a focused study timer', icon: Timer, color: '#F59E0B', bg: '#F59E0B15' },
+  { href: '/check-in', label: 'Daily Check-in', desc: 'How are you feeling today?', icon: Heart, color: '#EF4444', bg: 'rgba(239,68,68,0.1)' },
+  { href: '/journal', label: 'Write Journal', desc: 'Reflect and express', icon: BookOpen, color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)' },
+  { href: '/coach', label: 'AI Coach', desc: 'Talk to your coach', icon: MessageCircle, color: '#4ADE80', bg: 'rgba(74,222,128,0.1)' },
+  { href: '/focus', label: 'Focus Session', desc: 'Deep work time', icon: Timer, color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
+  { href: '/journal', label: 'Voice Journal', desc: 'Speak your thoughts', icon: Mic, color: '#818CF8', bg: 'rgba(129,140,248,0.1)' },
 ];
-
-function QuickActionGrid() {
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {ACTIONS.map((action, i) => {
-        const Icon = action.icon;
-        return (
-          <Link key={action.href} href={action.href}>
-            <motion.div
-              className="p-4 rounded-2xl transition-all cursor-pointer group"
-              style={{
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--c-border)',
-              }}
-              whileHover={{ y: -2, scale: 1.02, borderColor: 'var(--c-border-active)' }}
-              whileTap={{ scale: 0.98 }}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 + i * 0.1 }}
-            >
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
-                style={{ background: action.bg }}
-              >
-                <Icon className="w-5 h-5" style={{ color: action.color }} />
-              </div>
-              <p className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>
-                {action.label}
-              </p>
-              <p className="text-[11px] mt-0.5" style={{ color: 'var(--c-text-muted)' }}>{action.desc}</p>
-            </motion.div>
-          </Link>
-        );
-      })}
-    </div>
-  );
-}
-
-function JournalList({ entries }: { entries: JournalEntry[] }) {
-  if (entries.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8 text-center">
-        <BookOpen className="w-10 h-10 mb-3" style={{ color: 'var(--c-text-muted)', opacity: 0.3 }} />
-        <p className="text-sm" style={{ color: 'var(--c-text-muted)' }}>No journal entries yet.</p>
-        <Link href="/journal" className="text-xs mt-2" style={{ color: 'var(--c-primary)' }}>
-          Write your first entry →
-        </Link>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {entries.map((entry, i) => (
-        <motion.div
-          key={entry.id}
-          className="p-3 rounded-xl transition-all"
-          style={{ border: '1px solid var(--c-border)' }}
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.5 + i * 0.1 }}
-        >
-          <p className="text-sm line-clamp-2" style={{ color: 'var(--c-text)' }}>
-            {entry.content.slice(0, 100)}{entry.content.length > 100 ? '...' : ''}
-          </p>
-          {entry.emotionTags.length > 0 && (
-            <div className="flex gap-1 mt-2 flex-wrap">
-              {entry.emotionTags.slice(0, 3).map(tag => (
-                <span key={tag} className="mf-badge">{tag}</span>
-              ))}
-            </div>
-          )}
-        </motion.div>
-      ))}
-    </div>
-  );
-}
-
-function RecoveryList({ suggestions }: { suggestions: ReturnType<typeof generateRecoverySuggestions> }) {
-  return (
-    <div className="space-y-3">
-      {suggestions.map((s, i) => (
-        <motion.div
-          key={s.id}
-          className="flex items-start gap-3 p-3 rounded-xl"
-          style={{ border: '1px solid var(--c-border)' }}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 + i * 0.1 }}
-        >
-          <div className="text-2xl flex-shrink-0">{s.icon}</div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>{s.title}</p>
-              {s.duration && (
-                <span className="mf-badge whitespace-nowrap">{s.duration}</span>
-              )}
-            </div>
-            <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--c-text-muted)' }}>
-              {s.description}
-            </p>
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  );
-}
