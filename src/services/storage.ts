@@ -167,7 +167,18 @@ export function getPreferences(): UserPreferences {
     focusStreak: 0,
     onboardingCompleted: false,
   };
-  return getItem<UserPreferences>(STORAGE_KEYS.PREFERENCES, defaults);
+  const prefs = getItem<UserPreferences>(STORAGE_KEYS.PREFERENCES, defaults);
+
+  // Migration: if customExamDate is in the past, clear it
+  if (prefs.customExamDate) {
+    const d = new Date(prefs.customExamDate);
+    if (d.getTime() < Date.now()) {
+      prefs.customExamDate = null;
+      setItem(STORAGE_KEYS.PREFERENCES, prefs);
+    }
+  }
+
+  return prefs;
 }
 
 export function savePreferences(prefs: Partial<UserPreferences>): void {

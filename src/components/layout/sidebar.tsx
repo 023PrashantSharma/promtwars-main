@@ -9,9 +9,10 @@ import { useTheme } from '@/providers/theme-provider';
 import { getPreferences, savePreferences } from '@/services/storage';
 import { daysUntil } from '@/lib/utils';
 import { ExamType, DEFAULT_EXAM_DATES } from '@/types';
+import type { UserPreferences } from '@/types';
 import {
   LayoutDashboard, Heart, BookOpen, Brain, MessageCircle,
-  Timer, Settings, Sun, Moon, ChevronRight, User,
+  Timer, Settings, Sun, Moon, ChevronRight,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -26,20 +27,33 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
-  const [prefs, setPrefs] = useState<{ selectedExam?: ExamType | null; name?: string } | null>(null);
+  const [prefs, setPrefs] = useState<UserPreferences | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setPrefs(getPreferences());
+    setMounted(true);
+    const p = getPreferences();
+    // Auto-set name if empty
+    if (!p.name) {
+      savePreferences({ name: 'Prashant Sharma' });
+      p.name = 'Prashant Sharma';
+    }
+    setPrefs(p);
   }, []);
 
+  if (!mounted) return null;
+
   const selectedExam = prefs?.selectedExam || null;
+  // Always use DEFAULT_EXAM_DATES (not stored customExamDate) so dates stay current
   const examDate = selectedExam ? DEFAULT_EXAM_DATES[selectedExam] : null;
   const daysLeft = examDate ? daysUntil(examDate) : null;
+  // If exam date has passed (0 days), auto-clear
+  const showCountdown = selectedExam && daysLeft !== null && daysLeft > 0;
 
   const motivations = [
     'Stay consistent, success is closer than you think.',
     'Every hour of study is an investment in yourself.',
-    'Believe in the process.',
+    'Believe in the process. You\'ve got this!',
   ];
   const motivation = motivations[Math.floor(Date.now() / 86400000) % motivations.length];
 
@@ -99,9 +113,9 @@ export function Sidebar() {
       </nav>
 
       {/* Exam Countdown */}
-      {selectedExam && daysLeft !== null && (
-        <div className="px-4 py-3">
-          <div className="mf-divider" />
+      <div className="px-4 py-3">
+        <div className="mf-divider" />
+        {showCountdown ? (
           <div className="pt-3">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-medium" style={{ color: 'var(--c-text-muted)' }}>Exam Countdown</span>
@@ -111,22 +125,45 @@ export function Sidebar() {
             <p className="text-3xl font-bold leading-none mb-0.5" style={{ color: 'var(--c-text)' }}>{daysLeft}</p>
             <p className="text-[11px] mb-3" style={{ color: 'var(--c-text-muted)' }}>days remaining</p>
             <div className="h-1 rounded-full overflow-hidden mb-2" style={{ background: 'var(--c-border)' }}>
-              <div className="h-full rounded-full" style={{ background: 'var(--c-primary)', width: '65%' }} />
+              <div className="h-full rounded-full" style={{ background: 'var(--c-primary)', width: `${Math.min(100, Math.max(5, 100 - (daysLeft! / 365) * 100))}%` }} />
             </div>
             <p className="text-[10.5px] italic leading-snug" style={{ color: 'var(--c-text-muted)' }}>{motivation}</p>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="pt-3">
+            <span className="text-[11px] font-medium block mb-2" style={{ color: 'var(--c-text-muted)' }}>Exam Countdown</span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {Object.values(ExamType).map((exam) => (
+                <button
+                  key={exam}
+                  onClick={() => {
+                    savePreferences({ selectedExam: exam, customExamDate: null });
+                    setPrefs({ ...prefs!, selectedExam: exam, customExamDate: null });
+                  }}
+                  className="text-[11px] px-2 py-1.5 rounded-md text-left transition-all"
+                  style={{
+                    background: 'var(--bg-elevated)',
+                    color: 'var(--c-text-muted)',
+                    border: '1px solid var(--c-border)',
+                  }}
+                >
+                  {exam}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
-      {/* Bottom: User + Theme */}
-      <div className="px-3 pb-4 pt-2">
+      {/* User + Theme */}
+      <div className="px-3 pb-4 pt-1">
         <div className="mf-divider" />
         <div className="flex items-center gap-2.5 px-2 py-2.5 mt-1">
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
             style={{ background: 'var(--c-primary-soft)', color: 'var(--c-primary)' }}
           >
-            {(prefs?.name || 'P').charAt(0).toUpperCase()}
+            PS
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium truncate" style={{ color: 'var(--c-text)' }}>{prefs?.name || 'Prashant Sharma'}</p>

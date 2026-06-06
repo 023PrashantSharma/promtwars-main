@@ -167,13 +167,13 @@ export interface ChatMessage {
 // --- Exam Dates (Default Approximate) ---
 
 export const DEFAULT_EXAM_DATES: Record<ExamType, string> = {
-  [ExamType.JEE]: '2026-01-20',
-  [ExamType.NEET]: '2026-05-04',
-  [ExamType.UPSC]: '2026-06-15',
+  [ExamType.JEE]: '2027-01-25',
+  [ExamType.NEET]: '2027-05-04',
+  [ExamType.UPSC]: '2026-10-12',
   [ExamType.CAT]: '2026-11-24',
-  [ExamType.GATE]: '2027-02-01',
-  [ExamType.CUET]: '2026-05-15',
-  [ExamType.BoardExams]: '2026-03-01',
+  [ExamType.GATE]: '2027-02-08',
+  [ExamType.CUET]: '2027-05-20',
+  [ExamType.BoardExams]: '2027-03-01',
 };
 
 // --- User Preferences ---
