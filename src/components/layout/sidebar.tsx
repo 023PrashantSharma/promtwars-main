@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -12,7 +12,7 @@ import { ExamType, DEFAULT_EXAM_DATES } from '@/types';
 import type { UserPreferences } from '@/types';
 import {
   LayoutDashboard, Heart, BookOpen, Brain, MessageCircle,
-  Timer, Settings, Sun, Moon, ChevronRight,
+  Timer, Sun, Moon, ChevronRight, LogOut, Flame,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -26,6 +26,7 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const [prefs, setPrefs] = useState<UserPreferences | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -33,21 +34,22 @@ export function Sidebar() {
   useEffect(() => {
     setMounted(true);
     const p = getPreferences();
-    // Auto-set name if empty
-    if (!p.name) {
-      savePreferences({ name: 'Prashant Sharma' });
-      p.name = 'Prashant Sharma';
+    // Read name from localStorage (set during onboarding)
+    const storedName = localStorage.getItem('mindflow_user_name');
+    if (storedName && !p.name) {
+      p.name = storedName;
     }
     setPrefs(p);
   }, []);
 
   if (!mounted) return null;
 
+  const userName = prefs?.name || localStorage.getItem('mindflow_user_name') || 'User';
+  const initials = userName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
   const selectedExam = prefs?.selectedExam || null;
-  // Always use DEFAULT_EXAM_DATES (not stored customExamDate) so dates stay current
   const examDate = selectedExam ? DEFAULT_EXAM_DATES[selectedExam] : null;
   const daysLeft = examDate ? daysUntil(examDate) : null;
-  // If exam date has passed (0 days), auto-clear
   const showCountdown = selectedExam && daysLeft !== null && daysLeft > 0;
 
   const motivations = [
@@ -57,26 +59,29 @@ export function Sidebar() {
   ];
   const motivation = motivations[Math.floor(Date.now() / 86400000) % motivations.length];
 
+  const handleLogout = () => {
+    localStorage.removeItem('mindflow_user_id');
+    localStorage.removeItem('mindflow_user_name');
+    router.push('/');
+  };
+
   return (
-    <aside
-      className="mf-sidebar fixed left-0 top-0 bottom-0 z-40 flex flex-col"
-      style={{ width: 'var(--sidebar-w)' }}
-    >
-      {/* Logo */}
-      <div className="px-4 pt-5 pb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="relative w-9 h-9 rounded-xl overflow-hidden flex-shrink-0">
+    <aside className="bg-surface border-r border-border fixed left-0 top-0 bottom-0 z-40 flex flex-col w-[250px]">
+      {/* ──── Logo ──── */}
+      <div className="px-5 pt-5 pb-4">
+        <Link href="/dashboard" className="flex items-center gap-3 group">
+          <div className="relative w-9 h-9 rounded-xl overflow-hidden shrink-0 ring-1 ring-border group-hover:ring-primary/30 transition-all">
             <Image src="/promwars.jpg" alt="MindFlow" width={36} height={36} className="object-cover" priority />
           </div>
           <div className="min-w-0">
-            <h1 className="text-sm font-bold leading-tight" style={{ color: 'var(--c-text)' }}>MindFlow</h1>
-            <p className="text-[11px] leading-tight" style={{ color: 'var(--c-text-muted)' }}>Wellness Companion</p>
+            <h1 className="text-sm font-bold text-text leading-tight">MindFlow</h1>
+            <p className="text-[11px] text-muted leading-tight">Wellness Companion</p>
           </div>
-        </div>
+        </Link>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 space-y-0.5">
+      {/* ──── Navigation ──── */}
+      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -89,98 +94,109 @@ export function Sidebar() {
               >
                 {isActive && (
                   <motion.div
-                    layoutId="nav-pill"
-                    style={{
-                      position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
-                      width: 3, height: 16, borderRadius: '0 4px 4px 0', background: 'var(--c-primary)',
-                    }}
+                    layoutId="sidebar-pill"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-sm bg-primary"
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
                 )}
-                <Icon className="w-[17px] h-[17px] flex-shrink-0" />
+                <Icon className="w-[17px] h-[17px] shrink-0" />
                 <span>{item.label}</span>
               </motion.div>
             </Link>
           );
         })}
-
-        <Link href="#" className="block">
-          <div className="mf-nav-item">
-            <Settings className="w-[17px] h-[17px] flex-shrink-0" />
-            <span>Settings</span>
-          </div>
-        </Link>
       </nav>
 
-      {/* Exam Countdown */}
+      {/* ──── Exam Countdown ──── */}
       <div className="px-4 py-3">
         <div className="mf-divider" />
+
         {showCountdown ? (
           <div className="pt-3">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] font-medium" style={{ color: 'var(--c-text-muted)' }}>Exam Countdown</span>
-              <ChevronRight className="w-3.5 h-3.5" style={{ color: 'var(--c-text-muted)' }} />
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-medium text-muted uppercase tracking-wider">Exam Countdown</span>
+              <ChevronRight className="w-3.5 h-3.5 text-muted" />
             </div>
-            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--c-text-secondary)' }}>{selectedExam}</p>
-            <p className="text-3xl font-bold leading-none mb-0.5" style={{ color: 'var(--c-text)' }}>{daysLeft}</p>
-            <p className="text-[11px] mb-3" style={{ color: 'var(--c-text-muted)' }}>days remaining</p>
-            <div className="h-1 rounded-full overflow-hidden mb-2" style={{ background: 'var(--c-border)' }}>
-              <div className="h-full rounded-full" style={{ background: 'var(--c-primary)', width: `${Math.min(100, Math.max(5, 100 - (daysLeft! / 365) * 100))}%` }} />
+            <p className="text-xs font-semibold text-text-secondary mb-2">{selectedExam}</p>
+
+            <div className="flex items-baseline gap-1 mb-0.5">
+              <span className="text-3xl font-bold text-text tabular-nums">{daysLeft}</span>
             </div>
-            <p className="text-[10.5px] italic leading-snug" style={{ color: 'var(--c-text-muted)' }}>{motivation}</p>
+            <p className="text-[11px] text-muted mb-3">days remaining</p>
+
+            {/* Progress bar */}
+            <div className="h-1 bg-border rounded-full overflow-hidden mb-3">
+              <motion.div
+                className="h-full bg-primary rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(100, Math.max(5, 100 - (daysLeft! / 365) * 100))}%` }}
+                transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
+              />
+            </div>
+
+            <div className="flex items-start gap-2">
+              <Flame className="w-3 h-3 text-warning shrink-0 mt-0.5" />
+              <p className="text-[10.5px] text-muted italic leading-snug">{motivation}</p>
+            </div>
           </div>
         ) : (
           <div className="pt-3">
-            <span className="text-[11px] font-medium block mb-2" style={{ color: 'var(--c-text-muted)' }}>Exam Countdown</span>
+            <span className="text-[11px] font-medium text-muted uppercase tracking-wider block mb-2.5">
+              Select Your Exam
+            </span>
             <div className="grid grid-cols-2 gap-1.5">
               {Object.values(ExamType).map((exam) => (
-                <button
+                <motion.button
                   key={exam}
                   onClick={() => {
                     savePreferences({ selectedExam: exam, customExamDate: null });
                     setPrefs({ ...prefs!, selectedExam: exam, customExamDate: null });
                   }}
-                  className="text-[11px] px-2 py-1.5 rounded-md text-left transition-all"
-                  style={{
-                    background: 'var(--bg-elevated)',
-                    color: 'var(--c-text-muted)',
-                    border: '1px solid var(--c-border)',
-                  }}
+                  className="text-[11px] font-medium px-2.5 py-2 rounded-lg text-left text-muted bg-elevated border border-border hover:border-primary/30 hover:text-text hover:bg-card transition-all cursor-pointer"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   {exam}
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* User + Theme */}
+      {/* ──── User Profile + Theme ──── */}
       <div className="px-3 pb-4 pt-1">
         <div className="mf-divider" />
-        <div className="flex items-center gap-2.5 px-2 py-2.5 mt-1">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-            style={{ background: 'var(--c-primary-soft)', color: 'var(--c-primary)' }}
-          >
-            PS
+
+        <div className="flex items-center gap-2.5 px-2 py-2.5 mt-1.5 rounded-lg hover:bg-elevated transition-colors cursor-pointer group">
+          <div className="w-8 h-8 rounded-full bg-primary-soft text-primary flex items-center justify-center text-xs font-bold shrink-0">
+            {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium truncate" style={{ color: 'var(--c-text)' }}>{prefs?.name || 'Prashant Sharma'}</p>
-            <p className="text-[10px]" style={{ color: 'var(--c-text-muted)' }}>View profile</p>
+            <p className="text-xs font-medium text-text truncate">{userName}</p>
+            <p className="text-[10px] text-muted group-hover:text-primary transition-colors">View profile</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 px-1 mt-1">
+        {/* Theme + Logout */}
+        <div className="flex items-center gap-1 px-1 mt-1.5">
           <motion.button
             onClick={toggleTheme}
-            className="p-2 rounded-lg transition-all"
-            style={{ background: 'var(--bg-elevated)', color: 'var(--c-text-muted)' }}
+            className="p-2 rounded-lg bg-elevated text-muted hover:text-text hover:bg-card-hover transition-all cursor-pointer"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </motion.button>
+          <motion.button
+            onClick={handleLogout}
+            className="p-2 rounded-lg text-muted hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            title="Sign out"
+          >
+            <LogOut className="w-4 h-4" />
           </motion.button>
         </div>
       </div>
