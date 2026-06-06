@@ -1,32 +1,62 @@
 @import "tailwindcss";
 
 /* ========================================
-   MindFlow — Design System v3
-   Vercel/Geist-inspired, clean & minimal
+   MindFlow — Tailwind v4.3 Design System
+   Using @theme inline for CSS variable theming
    ======================================== */
 
-@theme {
+/* 
+   @theme inline lets us reference CSS variables 
+   so Tailwind utilities like bg-card, text-primary, 
+   border-border etc. all work properly.
+*/
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
   --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
-  --color-primary: #4ADE80;
+
+  /* Colors referencing CSS variables (defined in :root below) */
+  --color-bg: var(--c-bg);
+  --color-surface: var(--c-surface);
+  --color-card: var(--c-card);
+  --color-card-hover: var(--c-card-hover);
+  --color-elevated: var(--c-elevated);
+  --color-input: var(--c-input);
+
+  --color-primary: var(--c-primary);
+  --color-primary-hover: var(--c-primary-hover);
+  --color-primary-soft: var(--c-primary-soft);
+  --color-secondary: var(--c-secondary);
+
+  --color-text: var(--c-text);
+  --color-text-secondary: var(--c-text-secondary);
+  --color-muted: var(--c-text-muted);
+
+  --color-border: var(--c-border);
+  --color-border-hover: var(--c-border-hover);
+  --color-border-active: var(--c-border-active);
+
   --color-destructive: #EF4444;
   --color-warning: #F59E0B;
-  --animate-fade-in: fade-in 0.5s ease-out forwards;
-  --animate-float: float 6s ease-in-out infinite;
-  --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
+  --color-info: #818CF8;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
 }
 
-/* ===== 🌙 Dark Theme ===== */
+/* ===== 🌙 Dark Theme (default) ===== */
 :root {
-  --bg: #0B0B0F;
-  --bg-surface: #101014;
-  --bg-card: #141418;
-  --bg-card-hover: #1a1a20;
-  --bg-elevated: #1c1c22;
-  --bg-input: #141418;
+  --c-bg: #0B0B0F;
+  --c-surface: #101014;
+  --c-card: #141418;
+  --c-card-hover: #1a1a20;
+  --c-elevated: #1c1c22;
+  --c-input: #141418;
   --c-primary: #4ADE80;
   --c-primary-hover: #3dd972;
   --c-primary-soft: rgba(74,222,128,0.10);
-  --c-primary-softer: rgba(74,222,128,0.05);
   --c-secondary: #86EFAC;
   --c-text: #EAEDF2;
   --c-text-secondary: #A0A8B8;
@@ -34,26 +64,20 @@
   --c-border: #1E1E26;
   --c-border-hover: #2A2A36;
   --c-border-active: rgba(74,222,128,0.25);
-  --shadow-card: 0 0 0 1px var(--c-border);
-  --shadow-card-hover: 0 4px 20px rgba(0,0,0,0.15), 0 0 0 1px var(--c-border-hover);
-  --shadow-glow: 0 0 30px rgba(74,222,128,0.04);
   --sidebar-w: 250px;
-  --radius: 12px;
-  --radius-sm: 8px;
 }
 
 /* ===== ☀️ Light Theme ===== */
 [data-theme="light"] {
-  --bg: #F5F5F7;
-  --bg-surface: #FFFFFF;
-  --bg-card: #FFFFFF;
-  --bg-card-hover: #FAFAFA;
-  --bg-elevated: #F0F0F3;
-  --bg-input: #F7F7F9;
+  --c-bg: #F5F5F7;
+  --c-surface: #FFFFFF;
+  --c-card: #FFFFFF;
+  --c-card-hover: #FAFAFA;
+  --c-elevated: #F0F0F3;
+  --c-input: #F7F7F9;
   --c-primary: #16A34A;
   --c-primary-hover: #15803D;
   --c-primary-soft: rgba(22,163,74,0.08);
-  --c-primary-softer: rgba(22,163,74,0.03);
   --c-secondary: #4ADE80;
   --c-text: #111827;
   --c-text-secondary: #4B5563;
@@ -61,9 +85,6 @@
   --c-border: #E5E7EB;
   --c-border-hover: #D1D5DB;
   --c-border-active: rgba(22,163,74,0.25);
-  --shadow-card: 0 0 0 1px var(--c-border);
-  --shadow-card-hover: 0 4px 16px rgba(0,0,0,0.06), 0 0 0 1px var(--c-border-hover);
-  --shadow-glow: none;
 }
 
 /* ===== Keyframes ===== */
@@ -75,7 +96,7 @@
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
 html { scroll-behavior:smooth; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
 body {
-  background: var(--bg);
+  background: var(--c-bg);
   color: var(--c-text);
   font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
   min-height: 100vh;
@@ -91,21 +112,19 @@ body {
 
 /* ===== CARD ===== */
 .mf-card {
-  background: var(--bg-card);
+  background: var(--c-card);
   border: 1px solid var(--c-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   padding: 20px;
   transition: all 0.2s ease;
   position: relative;
 }
-.mf-card:hover {
-  border-color: var(--c-border-hover);
-}
+.mf-card:hover { border-color: var(--c-border-hover); }
 .mf-card-interactive { cursor:pointer; }
 .mf-card-interactive:hover {
   transform: translateY(-2px);
   border-color: var(--c-border-active);
-  box-shadow: var(--shadow-card-hover), var(--shadow-glow);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15), 0 0 30px rgba(74,222,128,0.04);
 }
 
 /* ===== BUTTONS ===== */
@@ -118,7 +137,6 @@ body {
   transition: all 0.15s ease;
 }
 .mf-btn-primary:hover { background: var(--c-primary-hover); transform:translateY(-1px); }
-.mf-btn-primary:active { transform:translateY(0); }
 
 .mf-btn-ghost {
   display:inline-flex; align-items:center; gap:6px;
@@ -128,11 +146,11 @@ body {
   border-radius: var(--radius-sm); border: 1px solid var(--c-border);
   cursor:pointer; transition: all 0.15s ease;
 }
-.mf-btn-ghost:hover { background: var(--bg-elevated); color: var(--c-text); border-color: var(--c-border-hover); }
+.mf-btn-ghost:hover { background: var(--c-elevated); color: var(--c-text); border-color: var(--c-border-hover); }
 
 /* ===== SIDEBAR ===== */
 .mf-sidebar {
-  background: var(--bg-surface);
+  background: var(--c-surface);
   border-right: 1px solid var(--c-border);
 }
 .mf-nav-item {
@@ -144,34 +162,27 @@ body {
   transition: all 0.15s ease;
   text-decoration: none; position:relative;
 }
-.mf-nav-item:hover { background: var(--c-primary-softer); color: var(--c-text); }
+.mf-nav-item:hover { background: rgba(74,222,128,0.04); color: var(--c-text); }
 .mf-nav-item-active {
   background: var(--c-primary-soft);
   color: var(--c-primary);
   font-weight: 600;
 }
 
-/* ===== LABELS ===== */
-.mf-label {
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--c-text-muted); margin-bottom: 12px;
-}
-
-/* ===== TEXT ===== */
+/* ===== TEXT GRADIENT ===== */
 .text-gradient {
   background: linear-gradient(135deg, var(--c-primary), var(--c-secondary));
   -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
 }
 
-/* ===== BADGE ===== */
+/* ===== BADGES ===== */
 .mf-badge {
   display:inline-flex; align-items:center;
   padding: 2px 8px; font-size: 11px; font-weight: 600;
   border-radius: 100px;
   background: var(--c-primary-soft); color: var(--c-primary);
 }
-.mf-badge-neutral { background: var(--bg-elevated); color: var(--c-text-muted); }
+.mf-badge-neutral { background: var(--c-elevated); color: var(--c-text-muted); }
 .mf-badge-warning { background: rgba(245,158,11,0.1); color: #F59E0B; }
 
 /* ===== CHAT BUBBLES ===== */
@@ -180,14 +191,14 @@ body {
   border-radius: 16px 16px 4px 16px; padding: 12px 16px; font-size: 13px; line-height: 1.6;
 }
 .mf-bubble-ai {
-  background: var(--bg-card); border: 1px solid var(--c-border); color: var(--c-text);
+  background: var(--c-card); border: 1px solid var(--c-border); color: var(--c-text);
   border-radius: 16px 16px 16px 4px; padding: 12px 16px; font-size: 13px; line-height: 1.6;
 }
 
 /* ===== INPUTS ===== */
 .mf-input {
   width:100%; padding: 10px 14px;
-  background: var(--bg-input); border: 1px solid var(--c-border);
+  background: var(--c-input); border: 1px solid var(--c-border);
   border-radius: var(--radius-sm); color: var(--c-text);
   font-family:inherit; font-size:13px; transition: all 0.15s ease; outline:none;
 }
@@ -198,7 +209,7 @@ body {
 input[type="range"] { -webkit-appearance:none; appearance:none; width:100%; height:4px; background:var(--c-border); border-radius:2px; outline:none; }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance:none; width:20px; height:20px; border-radius:50%;
-  background:var(--c-primary); cursor:pointer; border:3px solid var(--bg);
+  background:var(--c-primary); cursor:pointer; border:3px solid var(--c-bg);
   box-shadow:0 1px 6px rgba(74,222,128,0.25); transition:transform 0.15s ease;
 }
 input[type="range"]::-webkit-slider-thumb:hover { transform:scale(1.15); }
@@ -220,14 +231,14 @@ input[type="range"]::-webkit-slider-thumb:hover { transform:scale(1.15); }
   *,*::before,*::after { animation-duration:0.01ms !important; transition-duration:0.01ms !important; }
 }
 
-/* ===== Quick Action Row ===== */
+/* ===== ACTION ROW ===== */
 .mf-action-row {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 12px; border-radius: var(--radius-sm);
   transition: background 0.15s ease; cursor: pointer;
   text-decoration: none; color: inherit;
 }
-.mf-action-row:hover { background: var(--bg-elevated); }
+.mf-action-row:hover { background: var(--c-elevated); }
 
-/* ===== Divider ===== */
+/* ===== DIVIDER ===== */
 .mf-divider { height: 1px; background: var(--c-border); margin: 8px 0; }
