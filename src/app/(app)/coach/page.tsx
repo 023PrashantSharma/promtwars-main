@@ -3,11 +3,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition } from '@/components/ui/animated-card';
+import {
+  PageContainer,
+  PageHeader,
+  DashboardCard,
+} from '@/components/ui/primitives';
 import { getAIProvider } from '@/services/ai/provider';
 import { getChatHistory, saveChatMessage, clearChatHistory } from '@/services/storage';
 import { generateId } from '@/lib/utils';
 import type { ChatMessage } from '@/types';
-import { Send, Loader2, Sparkles, Trash2, MessageCircle } from 'lucide-react';
+import { Send, Loader2, Sparkles, Trash2, MessageCircle, ArrowRight } from 'lucide-react';
 
 const PROMPTS = [
   "I'm feeling anxious about my upcoming exam.",
@@ -26,8 +31,17 @@ export default function CoachPage() {
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => { setMounted(true); setMessages(getChatHistory()); }, []);
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMounted(true);
+      setMessages(getChatHistory());
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
@@ -45,91 +59,140 @@ export default function CoachPage() {
     } catch {
       const errMsg: ChatMessage = { id: generateId(), role: 'assistant', content: "I'm having trouble connecting. You're doing great — I'll be back.", timestamp: new Date().toISOString() };
       setMessages(prev => [...prev, errMsg]);
-    } finally { setIsLoading(false); }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(input);
+    }
   };
 
   if (!mounted) return null;
 
+  const userInitial = typeof window !== 'undefined'
+    ? (localStorage.getItem('mindflow_user_name') || 'U').charAt(0).toUpperCase()
+    : 'U';
+
   return (
     <PageTransition>
-      <div className="flex flex-col" style={{ height: 'calc(100vh - 6rem)' }}>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--c-text)' }}>
-              <Sparkles className="w-6 h-6" style={{ color: 'var(--c-primary)' }} /> AI Wellness Coach
-            </h1>
-            <p className="text-sm" style={{ color: 'var(--c-text-muted)' }}>Talk about anything on your mind.</p>
-          </div>
-          {messages.length > 0 && (
-            <button onClick={() => { clearChatHistory(); setMessages([]); }} className="p-2 rounded-xl transition-all"
-              style={{ color: 'var(--c-text-muted)' }} title="Clear chat">
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+      <PageContainer className="max-w-4xl">
+        <PageHeader
+          title="AI Wellness Coach"
+          description="Talk about study pressure, anxiety, or routine structures. AI guidance is supportive, not medical."
+          actions={
+            messages.length > 0 && (
+              <button
+                onClick={() => { clearChatHistory(); setMessages([]); }}
+                className="mf-btn-ghost flex items-center gap-1.5 h-9 px-3 text-caption cursor-pointer"
+                title="Clear chat history"
+              >
+                <Trash2 className="w-4 h-4" /> Clear Chat
+              </button>
+            )
+          }
+        />
 
-        <div className="flex-1 overflow-y-auto space-y-4 pb-4 pr-2">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center px-4">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: 'var(--c-primary-soft)' }}>
-                <MessageCircle className="w-8 h-8" style={{ color: 'var(--c-primary)' }} />
+        <div className="flex flex-col border border-border rounded-lg bg-surface h-[calc(100vh-240px)] min-h-[440px]">
+          {/* Messages Viewport */}
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8 max-w-lg mx-auto">
+                <div className="w-12 h-12 rounded-lg bg-primary-soft text-primary flex items-center justify-center mb-3">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <h3 className="text-title font-semibold mb-2">Need a study break or motivation?</h3>
+                <p className="text-body text-muted mb-6">
+                  Select a preset topic below or start typing to ask about burnout strategies or schedule pacing.
+                </p>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+                  {PROMPTS.map(p => (
+                    <button
+                      key={p}
+                      onClick={() => sendMessage(p)}
+                      className="text-left p-3 rounded-lg text-caption border border-border bg-surface hover:bg-card-hover hover:border-border-hover transition-all duration-150 cursor-pointer text-text-secondary flex items-center justify-between group"
+                    >
+                      <span className="truncate">{p}</span>
+                      <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2" />
+                    </button>
+                  ))}
+                </div>
               </div>
-              <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--c-text)' }}>How are you feeling today?</h3>
-              <p className="text-sm mb-8 max-w-sm" style={{ color: 'var(--c-text-muted)' }}>
-                Share what&apos;s on your mind. I&apos;ll provide support and practical advice.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
-                {PROMPTS.map(p => (
-                  <motion.button key={p} onClick={() => sendMessage(p)}
-                    className="text-left p-3 rounded-xl text-sm transition-all"
-                    style={{ background: 'var(--bg-card)', border: '1px solid var(--c-border)', color: 'var(--c-text-muted)' }}
-                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    &ldquo;{p}&rdquo;
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <AnimatePresence initial={false}>
-              {messages.map(msg => (
-                <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] ${msg.role === 'user' ? 'mf-bubble-user' : 'mf-bubble-ai'}`}>
-                    <div className="whitespace-pre-wrap">{msg.content}</div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                <AnimatePresence initial={false}>
+                  {messages.map(msg => (
+                    <div
+                      key={msg.id}
+                      className={`flex gap-3 items-start ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      {/* Avatar for AI */}
+                      {msg.role !== 'user' && (
+                        <div className="w-7 h-7 rounded-md bg-primary-soft text-primary flex items-center justify-center shrink-0 border border-border-active">
+                          <Sparkles className="w-3.5 h-3.5" />
+                        </div>
+                      )}
+
+                      <div className={`max-w-[75%] ${msg.role === 'user' ? 'mf-bubble-user' : 'mf-bubble-ai'}`}>
+                        <p className="text-body leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                      </div>
+
+                      {/* Avatar for User */}
+                      {msg.role === 'user' && (
+                        <div className="w-7 h-7 rounded-full bg-border text-text flex items-center justify-center shrink-0 text-caption font-semibold">
+                          {userInitial}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </AnimatePresence>
+
+                {isLoading && (
+                  <div className="flex gap-3 items-start justify-start">
+                    <div className="w-7 h-7 rounded-md bg-primary-soft text-primary flex items-center justify-center shrink-0 border border-border-active">
+                      <Sparkles className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="mf-bubble-ai flex items-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                      <span className="text-caption text-muted">Analyzing context...</span>
+                    </div>
                   </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          )}
-          {isLoading && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-              <div className="mf-bubble-ai flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--c-primary)' }} />
-                <span className="text-sm" style={{ color: 'var(--c-text-muted)' }}>Thinking...</span>
+                )}
+                <div ref={endRef} />
               </div>
-            </motion.div>
-          )}
-          <div ref={endRef} />
-        </div>
-
-        <div className="pt-4" style={{ borderTop: '1px solid var(--c-border)' }}>
-          <div className="flex items-end gap-3">
-            <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
-              placeholder="Type your message..." rows={1} className="mf-input resize-none" style={{ minHeight: 52, maxHeight: 128 }} />
-            <button onClick={() => sendMessage(input)} disabled={!input.trim() || isLoading}
-              className="mf-btn-primary p-3.5" style={{ opacity: input.trim() && !isLoading ? 1 : 0.4 }}>
-              <Send className="w-5 h-5" />
-            </button>
+            )}
           </div>
-          <p className="text-[10px] text-center mt-2" style={{ color: 'var(--c-text-muted)' }}>
-            MindFlow provides supportive guidance, not medical advice.
-          </p>
+
+          {/* Message Input Footer (Raycast-like command design) */}
+          <div className="p-3 border-t border-border bg-sidebar rounded-b-lg">
+            <div className="flex items-end gap-2 bg-surface border border-border rounded-md px-3 py-1.5 focus-within:border-primary transition-colors">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask your AI coach about managing exam pressure..."
+                rows={1}
+                className="flex-1 bg-transparent border-none outline-none resize-none text-body text-text placeholder-muted/50 py-1.5 h-9 min-h-[36px] max-h-[120px]"
+              />
+              <button
+                onClick={() => sendMessage(input)}
+                disabled={!input.trim() || isLoading}
+                className="p-1.5 bg-primary text-white rounded-md shrink-0 flex items-center justify-center hover:bg-primary-hover disabled:opacity-40 transition-all cursor-pointer h-8 w-8"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-[10px] text-center text-muted mt-2">
+              Conversations are saved locally. AI reflects and guides, but is not a substitute for clinical advice.
+            </p>
+          </div>
         </div>
-      </div>
+      </PageContainer>
     </PageTransition>
   );
 }

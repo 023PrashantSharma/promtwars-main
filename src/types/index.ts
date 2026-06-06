@@ -183,6 +183,7 @@ export interface UserPreferences {
   customExamDate: string | null;
   theme: 'dark' | 'light';
   name: string;
+  email: string | null;
   focusStreak: number;
   onboardingCompleted: boolean;
 }
@@ -192,6 +193,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   customExamDate: null,
   theme: 'dark',
   name: '',
+  email: null,
   focusStreak: 0,
   onboardingCompleted: false,
 };

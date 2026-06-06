@@ -49,6 +49,7 @@ const ChatMessageSchema = new Schema({
 // Main User Schema
 export interface IUser extends Document {
   name: string;
+  email?: string | null;
   selectedExam: string | null;
   customExamDate: string | null;
   theme: string;
@@ -62,6 +63,7 @@ export interface IUser extends Document {
 
 const UserSchema = new Schema({
   name: { type: String, required: true, trim: true },
+  email: { type: String, trim: true, default: null },
   selectedExam: { type: String, default: null },
   customExamDate: { type: String, default: null },
   theme: { type: String, default: 'dark' },

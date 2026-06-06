@@ -1,13 +1,12 @@
 import type { Metadata } from 'next';
-import { Poppins } from 'next/font/google';
+import { Geist } from 'next/font/google';
 import NextTopLoader from 'nextjs-toploader';
 import './globals.css';
 import { ThemeProvider } from '@/providers/theme-provider';
 
-const poppins = Poppins({
-  variable: '--font-poppins',
+const geist = Geist({
+  variable: '--font-geist',
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700', '800'],
   display: 'swap',
 });
 
@@ -26,6 +25,14 @@ export const metadata: Metadata = {
     'UPSC',
     'burnout prevention',
   ],
+  icons: {
+    icon: [
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
+  manifest: '/site.webmanifest',
 };
 
 export default function RootLayout({
@@ -34,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${poppins.variable} h-full`} suppressHydrationWarning>
+    <html lang="en" className={`${geist.variable} h-full`} suppressHydrationWarning>
       <body className="min-h-full font-sans antialiased">
         <NextTopLoader
           color="#4ADE80"

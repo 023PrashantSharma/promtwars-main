@@ -9,8 +9,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
     const { id } = await params;
+
+    if (id && id.startsWith('local_')) {
+      return NextResponse.json([]);
+    }
+
+    await connectDB();
     const user = await User.findById(id, 'focusSessions').lean();
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     return NextResponse.json(user.focusSessions || []);
@@ -24,9 +29,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
     const { id } = await params;
     const session = await request.json();
+
+    if (id && id.startsWith('local_')) {
+      return NextResponse.json(session, { status: 201 });
+    }
+
+    await connectDB();
 
     const user = await User.findById(id);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });

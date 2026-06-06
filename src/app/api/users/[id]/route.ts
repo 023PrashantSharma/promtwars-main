@@ -9,8 +9,20 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
     const { id } = await params;
+
+    // Fast-path bypass for offline simulated users
+    if (id && id.startsWith('local_')) {
+      return NextResponse.json({
+        _id: id,
+        moodEntries: [],
+        journalEntries: [],
+        focusSessions: [],
+        chatHistory: [],
+      });
+    }
+
+    await connectDB();
     const user = await User.findById(id).lean();
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -27,9 +39,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
     const { id } = await params;
     const updates = await request.json();
+
+    if (id && id.startsWith('local_')) {
+      return NextResponse.json({ success: true, updates });
+    }
+
+    await connectDB();
 
     // Only allow safe updates
     const allowed = ['name', 'selectedExam', 'customExamDate', 'theme'];

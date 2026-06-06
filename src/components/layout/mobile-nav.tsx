@@ -28,16 +28,16 @@ export function MobileNav() {
   return (
     <>
       {/* Top bar */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-surface border-b border-border">
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-[56px] z-50 flex items-center justify-between px-4 bg-surface border-b border-border">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg overflow-hidden">
-            <Image src="/promwars.jpg" alt="MindFlow" width={28} height={28} className="object-cover" />
+          <div className="w-7 h-7 rounded-md overflow-hidden ring-1 ring-border">
+            <Image src="/logo.png" alt="MindFlow" width={28} height={28} className="object-cover" />
           </div>
-          <span className="font-bold text-sm text-text">MindFlow</span>
+          <span className="font-bold text-[14px] text-text tracking-tight">MindFlow</span>
         </Link>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="p-1.5 rounded-lg bg-elevated text-text cursor-pointer"
+          className="p-1.5 rounded-md text-muted hover:text-text hover:bg-card-hover transition-colors cursor-pointer"
         >
           {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
@@ -57,32 +57,41 @@ export function MobileNav() {
             />
             {/* Drawer panel */}
             <motion.div
-              className="lg:hidden fixed left-0 top-0 bottom-0 z-50 w-64 flex flex-col bg-surface border-r border-border"
+              className="lg:hidden fixed left-0 top-0 bottom-0 z-50 w-64 flex flex-col bg-sidebar border-r border-border"
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
             >
               {/* Logo */}
-              <div className="px-4 pt-5 pb-4 flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl overflow-hidden">
-                  <Image src="/promwars.jpg" alt="MindFlow" width={32} height={32} className="object-cover" />
+              <div className="px-4 h-[72px] flex items-center gap-2 border-b border-border shrink-0">
+                <div className="w-7 h-7 rounded-md overflow-hidden ring-1 ring-border">
+                  <Image src="/logo.png" alt="MindFlow" width={28} height={28} className="object-cover" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-text">MindFlow</p>
-                  <p className="text-[10px] text-muted">Wellness Companion</p>
+                  <p className="text-[13px] font-bold text-text leading-tight tracking-tight">MindFlow</p>
+                  <p className="text-[10px] text-muted leading-tight mt-0.5">Wellness Companion</p>
                 </div>
               </div>
 
               {/* Nav */}
-              <nav className="flex-1 px-3 space-y-0.5">
+              <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
                 {NAV_ITEMS.map((item) => {
                   const isActive = pathname === item.href;
                   const Icon = item.icon;
                   return (
-                    <Link key={item.href} href={item.href} onClick={() => setIsOpen(false)} className="block">
-                      <div className={`mf-nav-item ${isActive ? 'mf-nav-item-active' : ''}`}>
-                        <Icon className="w-[17px] h-[17px]" />
+                    <Link key={item.href} href={item.href} onClick={() => setIsOpen(false)} className="block relative">
+                      <div
+                        className="flex items-center gap-2 px-3 h-[40px] rounded-md transition-colors duration-150 text-[14px]"
+                        style={{
+                          background: isActive ? 'rgba(34, 197, 94, 0.08)' : 'transparent',
+                          color: isActive ? 'var(--c-primary)' : 'var(--c-text-secondary)',
+                        }}
+                      >
+                        {isActive && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-[16px] bg-primary rounded-r" />
+                        )}
+                        <Icon className="w-4 h-4 shrink-0" />
                         <span>{item.label}</span>
                       </div>
                     </Link>
@@ -90,14 +99,16 @@ export function MobileNav() {
                 })}
               </nav>
 
-              {/* Theme */}
-              <div className="px-3 pb-4">
-                <div className="mf-divider" />
+              {/* Theme Switcher Footer */}
+              <div className="p-4 border-t border-border bg-sidebar shrink-0">
                 <button
-                  onClick={toggleTheme}
-                  className="mf-nav-item w-full mt-1 cursor-pointer"
+                  onClick={() => {
+                    toggleTheme();
+                    setIsOpen(false);
+                  }}
+                  className="flex items-center gap-2 px-3 h-[40px] w-full rounded-md text-muted hover:text-text hover:bg-card-hover transition-colors text-[14px] cursor-pointer"
                 >
-                  {theme === 'dark' ? <Sun className="w-[17px] h-[17px]" /> : <Moon className="w-[17px] h-[17px]" />}
+                  {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                   <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
                 </button>
               </div>

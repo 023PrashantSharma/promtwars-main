@@ -9,8 +9,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
     const { id } = await params;
+
+    if (id && id.startsWith('local_')) {
+      return NextResponse.json([]);
+    }
+
+    await connectDB();
     const user = await User.findById(id, 'chatHistory').lean();
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     return NextResponse.json(user.chatHistory || []);
@@ -24,9 +29,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
     const { id } = await params;
     const message = await request.json();
+
+    if (id && id.startsWith('local_')) {
+      return NextResponse.json(message, { status: 201 });
+    }
+
+    await connectDB();
 
     await User.findByIdAndUpdate(id, {
       $push: {
@@ -48,8 +58,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
     const { id } = await params;
+
+    if (id && id.startsWith('local_')) {
+      return NextResponse.json({ success: true });
+    }
+
+    await connectDB();
     await User.findByIdAndUpdate(id, { chatHistory: [] });
     return NextResponse.json({ success: true });
   } catch (error) {

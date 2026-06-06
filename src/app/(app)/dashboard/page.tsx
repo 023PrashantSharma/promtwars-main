@@ -1,23 +1,64 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { PageTransition, AnimatedCard } from '@/components/ui/animated-card';
 import { ParticleField } from '@/components/ui/particle-field';
-import { getRecentMoodEntries, getPreferences, getJournalEntries, getFocusStreak, getChatHistory } from '@/services/storage';
-import { calculateWellnessScore, calculateBurnoutScore, generateRecoverySuggestions } from '@/services/wellness-engine';
+import {
+  PageContainer,
+  PageHeader,
+  DashboardCard,
+  StatCard,
+  SectionHeader,
+  CommandAction,
+} from '@/components/ui/primitives';
+import {
+  getRecentMoodEntries,
+  getPreferences,
+  getJournalEntries,
+  getFocusStreak,
+  getChatHistory,
+  syncUserData,
+} from '@/services/storage';
+import {
+  calculateWellnessScore,
+  calculateBurnoutScore,
+  generateRecoverySuggestions,
+} from '@/services/wellness-engine';
 import { getGreeting, scoreToColor, daysUntil } from '@/lib/utils';
 import { MOOD_CONFIG, RiskLevel, ExamType, DEFAULT_EXAM_DATES } from '@/types';
 import type { MoodEntry, UserPreferences, WellnessScore, JournalEntry, ChatMessage } from '@/types';
-import { savePreferences } from '@/services/storage';
 import {
-  Heart, BookOpen, MessageCircle, Timer, Shield, AlertTriangle,
-  AlertOctagon, ArrowRight, ChevronRight, TrendingUp, Moon as MoonIcon,
-  Smile, Bell, Mic, Send, Droplets, Wind, Footprints, Battery,
+  Heart,
+  BookOpen,
+  MessageCircle,
+  Timer,
+  Shield,
+  TrendingUp,
+  Moon as MoonIcon,
+  Bell,
+  Mic,
+  Send,
+  Zap,
+  Flame,
+  Calendar,
+  Sparkles,
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from 'recharts';
+
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [moodEntries, setMoodEntries] = useState<MoodEntry[]>([]);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [journals, setJournals] = useState<JournalEntry[]>([]);
@@ -26,12 +67,25 @@ export default function DashboardPage() {
   const [chatPreview, setChatPreview] = useState<ChatMessage[]>([]);
 
   useEffect(() => {
-    setMounted(true);
-    setMoodEntries(getRecentMoodEntries(7));
-    setPreferences(getPreferences());
-    setJournals(getJournalEntries().slice(0, 3));
-    setFocusStreak(getFocusStreak());
-    setChatPreview(getChatHistory().slice(-2));
+    const timer = setTimeout(() => {
+      setMounted(true);
+      setMoodEntries(getRecentMoodEntries(7));
+      setPreferences(getPreferences());
+      setJournals(getJournalEntries().slice(0, 3));
+      setFocusStreak(getFocusStreak());
+      setChatPreview(getChatHistory().slice(-2));
+
+      syncUserData()
+        .then(() => {
+          setMoodEntries(getRecentMoodEntries(7));
+          setPreferences(getPreferences());
+          setJournals(getJournalEntries().slice(0, 3));
+          setFocusStreak(getFocusStreak());
+          setChatPreview(getChatHistory().slice(-2));
+        })
+        .catch((err) => console.error('Sync failed:', err));
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   if (!mounted) return null;
@@ -45,7 +99,6 @@ export default function DashboardPage() {
   const avgSleep = moodEntries.length > 0
     ? (moodEntries.reduce((a, e) => a + e.sleepHours, 0) / moodEntries.length).toFixed(1)
     : '—';
-  const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   // Mood label
   const moodLabel = latestMood
@@ -55,356 +108,337 @@ export default function DashboardPage() {
     ? MOOD_CONFIG[latestMood.mood as keyof typeof MOOD_CONFIG]?.emoji || '😐'
     : '😐';
 
+  // Countdown calculations
+  const selectedExam = preferences?.selectedExam || null;
+  const examDate = selectedExam ? (preferences?.customExamDate || DEFAULT_EXAM_DATES[selectedExam]) : null;
+  const daysLeft = examDate ? daysUntil(examDate) : null;
+
+  // Chart data formatting
+  const chartData = [...moodEntries].slice(0, 7).reverse().map(e => {
+    const d = new Date(e.date);
+    return {
+      name: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      Mood: e.mood * 20, // scale to 100
+      Stress: e.stress * 10, // scale to 100
+      Energy: e.energy * 20, // scale to 100
+    };
+  });
+
   return (
     <PageTransition>
-      <div className="relative">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <ParticleField particleCount={12} />
+      <PageContainer>
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          <ParticleField particleCount={8} />
         </div>
-        <div className="mf-spotlight" />
-
-        <div className="relative z-10 space-y-5">
-          {/* ===== HEADER ===== */}
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--c-text)' }}>
-                {greeting}, {userName} <span>👋</span>
-              </h1>
-              <p className="text-sm" style={{ color: 'var(--c-text-muted)' }}>
-                You&apos;ve got this. Small steps, every day.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs px-3 py-1.5 rounded-lg" style={{ background: 'var(--bg-card)', border: '1px solid var(--c-border)', color: 'var(--c-text-secondary)' }}>
-                {today}
-              </span>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--c-border)' }}>
-                <Bell className="w-4 h-4" style={{ color: 'var(--c-text-muted)' }} />
-              </div>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: 'var(--c-primary-soft)', color: 'var(--c-primary)' }}>
-                {userName.charAt(0)}
-              </div>
-            </div>
-          </div>
-
-          {/* ===== ROW 1: 4 STAT CARDS ===== */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              label="Wellness Score"
-              value={<>{wellnessScore.overall}<span className="text-sm font-normal" style={{ color: 'var(--c-text-muted)' }}>/100</span></>}
-              sub={moodEntries.length > 1 ? 'Better than yesterday' : 'Start tracking'}
-              trend={moodEntries.length > 1 ? '+12%' : undefined}
-              delay={0.1}
-            />
-            <StatCard
-              label="Burnout Risk"
-              value={<span style={{ color: burnoutRisk.level === RiskLevel.Low ? 'var(--c-primary)' : burnoutRisk.level === RiskLevel.Moderate ? '#F59E0B' : '#EF4444' }}>
-                {burnoutRisk.level === RiskLevel.Low ? '● Low' : burnoutRisk.level === RiskLevel.Moderate ? '● Moderate' : '● High'}
-              </span>}
-              sub={burnoutRisk.level === RiskLevel.Low ? "You're doing good. Keep it up!" : 'Take some breaks'}
-              icon={<Shield className="w-4 h-4" style={{ color: 'var(--c-primary)' }} />}
-              delay={0.15}
-            />
-            <StatCard
-              label="Mood"
-              value={<span className="flex items-center gap-1.5">{moodEmoji} {moodLabel}</span>}
-              sub={moodEntries.length > 0 ? 'More positive than usual' : 'No data yet'}
-              delay={0.2}
-            />
-            <StatCard
-              label="Sleep"
-              value={<span className="flex items-center gap-1.5"><MoonIcon className="w-4 h-4" style={{ color: '#818CF8' }} /> {avgSleep} hrs</span>}
-              sub={Number(avgSleep) >= 7 ? 'Great sleep quality' : 'Needs a little improvement'}
-              delay={0.25}
-            />
-          </div>
-
-          {/* ===== ROW 2: CHART + BALANCE + QUICK ACTIONS ===== */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Wellness Overview — span 5 */}
-            <div className="lg:col-span-5">
-              <AnimatedCard delay={0.15} hover={false}>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>Wellness Overview</p>
-                    <p className="text-[11px]" style={{ color: 'var(--c-text-muted)' }}>Your trends from the last 7 days</p>
-                  </div>
-                  <span className="text-[11px] px-2 py-1 rounded-md" style={{ background: 'var(--bg-elevated)', color: 'var(--c-text-muted)' }}>7 Days</span>
-                </div>
-                {/* Legend */}
-                <div className="flex items-center gap-4 mb-3">
-                  <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--c-text-muted)' }}>
-                    <span className="w-2 h-2 rounded-full" style={{ background: '#4ADE80' }} /> Mood
-                  </span>
-                  <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--c-text-muted)' }}>
-                    <span className="w-2 h-2 rounded-full" style={{ background: '#F59E0B' }} /> Stress
-                  </span>
-                  <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--c-text-muted)' }}>
-                    <span className="w-2 h-2 rounded-full" style={{ background: '#818CF8' }} /> Energy
-                  </span>
-                </div>
-                <MiniChart entries={moodEntries} />
-              </AnimatedCard>
-            </div>
-
-            {/* Study-Wellness Balance — span 3 */}
-            <div className="lg:col-span-3">
-              <AnimatedCard delay={0.2} hover={false}>
-                <p className="text-sm font-semibold mb-4" style={{ color: 'var(--c-text)' }}>Study · Wellness Balance</p>
-                <div className="flex flex-col items-center">
-                  <WellnessRing score={wellnessScore} />
-                  <p className="text-sm font-semibold mt-3" style={{ color: 'var(--c-primary)' }}>
-                    {wellnessScore.overall >= 70 ? 'Great balance!' : wellnessScore.overall >= 50 ? 'Getting there' : 'Needs attention'}
-                  </p>
-                  <p className="text-[11px] text-center mt-1" style={{ color: 'var(--c-text-muted)' }}>
-                    Keep maintaining your study and self-care harmony.
-                  </p>
-                </div>
-              </AnimatedCard>
-            </div>
-
-            {/* Quick Actions — span 4 */}
-            <div className="lg:col-span-4">
-              <AnimatedCard delay={0.25} hover={false}>
-                <p className="text-sm font-semibold mb-3" style={{ color: 'var(--c-text)' }}>Quick Actions</p>
-                <div className="space-y-1">
-                  {ACTIONS.map((a, i) => {
-                    const Icon = a.icon;
-                    return (
-                      <Link key={a.href} href={a.href} className="mf-action-row">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: a.bg }}>
-                          <Icon className="w-4 h-4" style={{ color: a.color }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-medium" style={{ color: 'var(--c-text)' }}>{a.label}</p>
-                          <p className="text-[11px]" style={{ color: 'var(--c-text-muted)' }}>{a.desc}</p>
-                        </div>
-                        <ArrowRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--c-text-muted)' }} />
-                      </Link>
-                    );
-                  })}
-                </div>
-              </AnimatedCard>
-            </div>
-          </div>
-
-          {/* ===== ROW 3: JOURNAL + RECOVERY + AI COACH ===== */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Recent Journal */}
-            <AnimatedCard delay={0.3} hover={false}>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>Recent Journal</p>
-                <Link href="/journal" className="text-[11px] font-medium" style={{ color: 'var(--c-text-muted)' }}>View all</Link>
-              </div>
-              {journals.length === 0 ? (
-                <div className="flex flex-col items-center py-6 text-center">
-                  <BookOpen className="w-8 h-8 mb-2" style={{ color: 'var(--c-text-muted)', opacity: 0.3 }} />
-                  <p className="text-xs mb-1" style={{ color: 'var(--c-text-muted)' }}>No journal entries yet</p>
-                  <p className="text-[11px] mb-3" style={{ color: 'var(--c-text-muted)' }}>Start writing to receive AI-powered reflections.</p>
-                  <Link href="/journal" className="mf-btn-primary text-xs px-4 py-2">Write your first entry</Link>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {journals.map((entry) => (
-                    <div key={entry.id} className="flex items-start gap-3 p-2.5 rounded-lg" style={{ background: 'var(--bg-elevated)' }}>
-                      <div className="text-lg flex-shrink-0">📝</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs line-clamp-1 font-medium" style={{ color: 'var(--c-text)' }}>
-                          {entry.content.slice(0, 60)}{entry.content.length > 60 ? '...' : ''}
-                        </p>
-                        <p className="text-[10px]" style={{ color: 'var(--c-text-muted)' }}>
-                          {new Date(entry.createdAt).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
-                        </p>
-                      </div>
-                      {entry.emotionTags[0] && <span className="mf-badge text-[10px]">{entry.emotionTags[0]}</span>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </AnimatedCard>
-
-            {/* Recovery Suggestions */}
-            <AnimatedCard delay={0.35} hover={false}>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>Recovery Suggestions</p>
-                <span className="text-[11px] font-medium" style={{ color: 'var(--c-text-muted)' }}>View all</span>
-              </div>
-              <div className="space-y-2">
-                {suggestions.slice(0, 4).map((s) => (
-                  <div key={s.id} className="mf-action-row py-2">
-                    <div className="text-lg flex-shrink-0">{s.icon}</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium" style={{ color: 'var(--c-text)' }}>{s.title}</p>
-                      <p className="text-[10px] line-clamp-1" style={{ color: 'var(--c-text-muted)' }}>{s.description}</p>
-                    </div>
-                    {s.duration && <span className="mf-badge text-[10px]">{s.duration}</span>}
-                  </div>
-                ))}
-              </div>
-            </AnimatedCard>
-
-            {/* AI Coach Preview */}
-            <AnimatedCard delay={0.4} hover={false}>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>AI Coach</p>
-                <Link href="/coach" className="text-[11px] font-medium" style={{ color: 'var(--c-text-muted)' }}>View all</Link>
-              </div>
-              <div className="space-y-3 mb-4">
-                {chatPreview.length > 0 ? (
-                  chatPreview.map(msg => (
-                    <div key={msg.id} className={msg.role === 'user' ? 'mf-bubble-user text-xs' : 'mf-bubble-ai text-xs'}>
-                      {msg.content.slice(0, 120)}{msg.content.length > 120 ? '...' : ''}
-                    </div>
-                  ))
-                ) : (
-                  <div className="mf-bubble-ai text-xs">
-                    <div className="flex items-start gap-2">
-                      <span className="text-base">🌱</span>
-                      <p>It&apos;s okay to have tough days. Progress isn&apos;t always linear. You&apos;re showing up, and that matters a lot.</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  className="mf-input text-xs py-2"
-                  placeholder="Ask anything..."
-                  readOnly
-                  onClick={() => window.location.href = '/coach'}
-                />
-                <Link href="/coach" className="p-2 rounded-lg flex-shrink-0" style={{ background: 'var(--c-primary)' }}>
-                  <Send className="w-4 h-4" style={{ color: '#0B0B0F' }} />
-                </Link>
-              </div>
-            </AnimatedCard>
-          </div>
-
-          {/* ===== FOOTER ===== */}
-          <div className="text-center pt-4 pb-2">
-            <p className="text-[11px] italic" style={{ color: 'var(--c-text-muted)', opacity: 0.6 }}>
-              MindFlow is not a substitute for professional medical advice.<br />
-              If you&apos;re in crisis, please reach out to a trusted adult or helpline.
+        
+        {/* ===== TOP NAVIGATION BAR VIEWPORT ANSWERS ===== */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 z-10">
+          <div>
+            <h1 className="text-display font-semibold tracking-tight text-text">
+              {greeting}, {userName}
+            </h1>
+            <p className="text-body text-muted mt-1">
+              Here is your wellness and preparation overview.
             </p>
           </div>
         </div>
-      </div>
+
+        {/* ===== ROW 1: 4 STAT CARDS (Answers 3 core questions immediately) ===== */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 z-10">
+          <StatCard
+            label="How am I doing?"
+            value={`${wellnessScore.overall}/100`}
+            sub={
+              <span className="flex items-center gap-1">
+                Mood: {moodEmoji} {moodLabel}
+              </span>
+            }
+            icon={<TrendingUp className="w-4 h-4 text-primary" />}
+          />
+          <StatCard
+            label="What requires attention?"
+            value={
+              <span
+                style={{
+                  color:
+                    burnoutRisk.level === RiskLevel.Low
+                      ? 'var(--c-primary)'
+                      : burnoutRisk.level === RiskLevel.Moderate
+                      ? 'var(--color-warning)'
+                      : 'var(--color-destructive)',
+                }}
+              >
+                {burnoutRisk.level === RiskLevel.Low
+                  ? 'Low Risk'
+                  : burnoutRisk.level === RiskLevel.Moderate
+                  ? 'Mod Risk'
+                  : 'High Risk'}
+              </span>
+            }
+            sub={`Burnout risk is ${burnoutRisk.level.toLowerCase()}`}
+            icon={<Shield className="w-4 h-4 text-primary" />}
+          />
+          <StatCard
+            label="Exam Countdown"
+            value={daysLeft !== null && daysLeft > 0 ? `${daysLeft} days` : 'No Exam'}
+            sub={selectedExam ? `${selectedExam} preparation` : 'Set exam in Check-in'}
+            icon={<Calendar className="w-4 h-4 text-primary" />}
+          />
+          <StatCard
+            label="Focus Streak"
+            value={`${focusStreak} days`}
+            sub={`Completed ${avgSleep} hrs avg sleep`}
+            icon={<Flame className="w-4 h-4 text-warning" />}
+          />
+        </div>
+
+        {/* ===== ROW 2: CHART (7 Cols) + RING (2 Cols) + ACTIONS (3 Cols) ===== */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 z-10 items-stretch">
+          {/* Wellness Chart - 7 Columns */}
+          <div className="lg:col-span-7 flex flex-col">
+            <DashboardCard className="flex-1 flex flex-col justify-between">
+              <div>
+                <SectionHeader
+                  title="Wellness Trend"
+                  description="Mood, Stress, and Energy metrics scaled to 100"
+                />
+                <div className="flex items-center gap-4 mb-4">
+                  <span className="flex items-center gap-1.5 text-caption text-muted">
+                    <span className="w-2.5 h-2.5 rounded-full bg-primary" /> Mood
+                  </span>
+                  <span className="flex items-center gap-1.5 text-caption text-muted">
+                    <span className="w-2.5 h-2.5 rounded-full bg-warning" /> Stress
+                  </span>
+                  <span className="flex items-center gap-1.5 text-caption text-muted">
+                    <span className="w-2.5 h-2.5 rounded-full bg-info" /> Energy
+                  </span>
+                </div>
+              </div>
+
+              <div className="h-[200px] w-full mt-2">
+                {chartData.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-caption text-muted">
+                    Complete your daily check-in to generate trends.
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                      <CartesianGrid vertical={false} stroke="var(--c-border)" strokeDasharray="3 3" />
+                      <XAxis dataKey="name" stroke="var(--c-text-muted)" fontSize={11} tickLine={false} />
+                      <YAxis domain={[0, 100]} stroke="var(--c-text-muted)" fontSize={11} tickLine={false} axisLine={false} />
+                      <Tooltip
+                        contentStyle={{
+                          background: 'var(--c-surface)',
+                          borderColor: 'var(--c-border)',
+                          borderRadius: '8px',
+                          color: 'var(--c-text)',
+                          fontSize: '12px',
+                        }}
+                      />
+                      <Line type="monotone" dataKey="Mood" stroke="#22C55E" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                      <Line type="monotone" dataKey="Stress" stroke="#F59E0B" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                      <Line type="monotone" dataKey="Energy" stroke="#3B82F6" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </DashboardCard>
+          </div>
+
+          {/* Study Wellness Balance - 2 Columns */}
+          <div className="lg:col-span-2 flex flex-col">
+            <DashboardCard className="flex-1 flex flex-col justify-between items-center text-center">
+              <span className="text-caption font-semibold text-muted uppercase tracking-wider block mb-2 w-full text-left">
+                Balance
+              </span>
+              <div className="my-auto flex flex-col items-center">
+                <WellnessRing score={wellnessScore} />
+                <p className="text-body font-semibold mt-3 text-primary">
+                  {wellnessScore.overall >= 70
+                    ? 'Balanced'
+                    : wellnessScore.overall >= 50
+                    ? 'Moderate'
+                    : 'Needs Focus'}
+                </p>
+              </div>
+            </DashboardCard>
+          </div>
+
+          {/* Quick Actions - 3 Columns */}
+          <div className="lg:col-span-3 flex flex-col">
+            <DashboardCard className="flex-1 flex flex-col justify-between">
+              <span className="text-caption font-semibold text-muted uppercase tracking-wider block mb-2">
+                Quick Actions
+              </span>
+              <div className="flex-1 flex flex-col justify-center gap-1">
+                {ACTIONS.map(a => (
+                  <CommandAction
+                    key={a.href}
+                    href={a.href}
+                    label={a.label}
+                    description={a.desc}
+                    icon={<a.icon className="w-4 h-4" style={{ color: a.color }} />}
+                  />
+                ))}
+              </div>
+            </DashboardCard>
+          </div>
+        </div>
+
+        {/* ===== ROW 3: SUMMARY (1/3) + SUGGESTIONS (1/3) + AI COACH (1/3) (Equal Heights) ===== */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 z-10 items-stretch">
+          {/* Today's Wellness Summary & AI Insight */}
+          <DashboardCard className="flex flex-col justify-between min-h-[260px]">
+            <div>
+              <SectionHeader title="Wellness Summary" />
+              <p className="text-body text-text leading-relaxed">
+                {moodEntries.length > 0
+                  ? `You logged a ${moodLabel.toLowerCase()} mood today with an average sleep of ${avgSleep} hours. Wellness levels are sitting at ${wellnessScore.overall}%.`
+                  : "You haven't completed your daily check-in yet. Logging your mood provides custom wellness metrics."}
+              </p>
+            </div>
+            
+            <div className="p-3.5 bg-card-hover border border-border rounded-lg flex gap-3.5 items-start mt-4">
+              <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <span className="text-[11px] font-semibold text-muted uppercase tracking-wider block mb-0.5">
+                  AI Insight of the Day
+                </span>
+                <p className="text-caption text-text-secondary leading-normal">
+                  {wellnessScore.overall >= 70
+                    ? "Your study and self-care balance is excellent. Maintain this routine to keep peak cognitive performance."
+                    : "Small micro-breaks of 5 minutes during long study sprints will help reset your mental bandwidth."}
+                </p>
+              </div>
+            </div>
+          </DashboardCard>
+
+          {/* Recovery Recommendations & Recommended Action */}
+          <DashboardCard className="flex flex-col justify-between min-h-[260px]">
+            <div>
+              <SectionHeader title="Recovery Suggestions" />
+              <div className="flex flex-col gap-2 mt-2">
+                {suggestions.slice(0, 3).map((s) => (
+                  <div key={s.id} className="flex items-center justify-between p-2 rounded-md hover:bg-card-hover transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-base shrink-0">{s.icon}</span>
+                      <div className="min-w-0">
+                        <p className="text-caption font-medium text-text truncate">{s.title}</p>
+                        <p className="text-[10px] text-muted truncate">{s.description}</p>
+                      </div>
+                    </div>
+                    {s.duration && (
+                      <span className="text-[10px] bg-primary-soft text-primary px-1.5 py-0.5 rounded-full shrink-0">
+                        {s.duration}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-medium text-muted block">Recommended Action</span>
+                <span className="text-body font-semibold text-text">
+                  {suggestions[0]?.title || 'Daily Wellness Check-in'}
+                </span>
+              </div>
+              <Link
+                href={suggestions[0] ? '/dashboard' : '/check-in'}
+                className="text-caption text-primary font-medium hover:underline flex items-center gap-1"
+              >
+                Start now →
+              </Link>
+            </div>
+          </DashboardCard>
+
+          {/* AI Coach Preview */}
+          <DashboardCard className="flex flex-col justify-between min-h-[260px]">
+            <div>
+              <SectionHeader title="AI Coach" />
+              <div className="flex flex-col gap-2 my-auto">
+                {chatPreview.length > 0 ? (
+                  chatPreview.map(msg => (
+                    <div key={msg.id} className={msg.role === 'user' ? 'mf-bubble-user text-[12px] py-1.5 px-3' : 'mf-bubble-ai text-[12px] py-1.5 px-3'}>
+                      <p className="line-clamp-2 leading-relaxed">{msg.content}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-3.5 bg-card-hover border border-border rounded-lg text-caption text-text-secondary leading-normal flex items-start gap-2">
+                    <span className="text-sm shrink-0">🌱</span>
+                    <p>
+                      It&apos;s okay to have tough days. Progress isn&apos;t always linear. How can I support your study focus today?
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
+              <input
+                className="mf-input text-caption py-1.5 h-8"
+                placeholder="Ask anything..."
+                readOnly
+                onClick={() => router.push('/coach')}
+              />
+              <button
+                onClick={() => router.push('/coach')}
+                className="p-1.5 bg-primary rounded-md shrink-0 flex items-center justify-center h-8 w-8 hover:bg-primary-hover transition-colors"
+              >
+                <Send className="w-4.5 h-4.5 text-white" />
+              </button>
+            </div>
+          </DashboardCard>
+        </div>
+
+        {/* ===== MOCK FOOTER ===== */}
+        <div className="text-center pt-4 opacity-50">
+          <p className="text-caption italic text-muted">
+            MindFlow is not a substitute for professional medical advice. If you are in crisis, please seek immediate help.
+          </p>
+        </div>
+      </PageContainer>
     </PageTransition>
   );
 }
 
-/* ========== Sub Components ========== */
-
-function StatCard({ label, value, sub, trend, icon, delay }: {
-  label: string; value: React.ReactNode; sub: string;
-  trend?: string; icon?: React.ReactNode; delay: number;
-}) {
-  return (
-    <AnimatedCard delay={delay} hover={false}>
-      <p className="text-[11px] font-medium mb-2" style={{ color: 'var(--c-text-muted)' }}>{label}</p>
-      <div className="flex items-center gap-2 mb-1">
-        {icon}
-        <span className="text-xl font-bold" style={{ color: 'var(--c-text)' }}>{value}</span>
-        {trend && (
-          <span className="flex items-center gap-0.5 text-[11px] font-medium" style={{ color: 'var(--c-primary)' }}>
-            <TrendingUp className="w-3 h-3" /> {trend}
-          </span>
-        )}
-      </div>
-      <p className="text-[11px]" style={{ color: 'var(--c-text-muted)' }}>{sub}</p>
-    </AnimatedCard>
-  );
-}
-
+/* ========== Ring Component ========== */
 function WellnessRing({ score }: { score: WellnessScore }) {
-  const r = 50; const c = 2 * Math.PI * r;
+  const r = 40;
+  const c = 2 * Math.PI * r;
   const offset = c - (score.overall / 100) * c;
   const color = scoreToColor(score.overall);
   return (
-    <div className="relative w-32 h-32">
-      <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r={r} fill="none" stroke="var(--c-border)" strokeWidth="7" />
-        <motion.circle cx="60" cy="60" r={r} fill="none" stroke={color} strokeWidth="7" strokeLinecap="round"
-          strokeDasharray={c} initial={{ strokeDashoffset: c }} animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1.2, ease: 'easeOut', delay: 0.5 }} />
+    <div className="relative w-24 h-24">
+      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r={r} fill="none" stroke="var(--c-border)" strokeWidth="6" />
+        <motion.circle
+          cx="50"
+          cy="50"
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          initial={{ strokeDashoffset: c }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 }}
+        />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-bold" style={{ color: 'var(--c-text)' }}>{score.overall}</span>
-        <span className="text-[10px]" style={{ color: 'var(--c-text-muted)' }}>/100</span>
+        <span className="text-[18px] font-bold text-text">{score.overall}</span>
+        <span className="text-[10px] text-muted leading-none">/100</span>
       </div>
-    </div>
-  );
-}
-
-function MiniChart({ entries }: { entries: MoodEntry[] }) {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const last7 = [...entries].slice(0, 7).reverse();
-
-  if (last7.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8">
-        <p className="text-xs" style={{ color: 'var(--c-text-muted)' }}>No data yet. Complete a check-in to see trends.</p>
-      </div>
-    );
-  }
-
-  // SVG line chart
-  const h = 120; const w = 300;
-  const padX = 30; const padY = 15;
-  const chartW = w - padX * 2;
-  const chartH = h - padY * 2;
-
-  const toPoints = (data: number[], max: number) =>
-    data.map((v, i) => ({
-      x: padX + (i / Math.max(data.length - 1, 1)) * chartW,
-      y: padY + chartH - (v / max) * chartH,
-    }));
-
-  const moodPts = toPoints(last7.map(e => e.mood), 5);
-  const stressPts = toPoints(last7.map(e => e.stress), 10);
-  const energyPts = toPoints(last7.map(e => e.energy), 5);
-
-  const toPath = (pts: { x: number; y: number }[]) =>
-    pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-
-  return (
-    <div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 140 }}>
-        {/* Grid lines */}
-        {[0, 25, 50, 75, 100].map(pct => {
-          const y = padY + chartH - (pct / 100) * chartH;
-          return <line key={pct} x1={padX} y1={y} x2={w - padX} y2={y} stroke="var(--c-border)" strokeWidth="0.5" />;
-        })}
-        {/* Y-axis labels */}
-        {[0, 25, 50, 75, 100].map(pct => {
-          const y = padY + chartH - (pct / 100) * chartH;
-          return <text key={pct} x={padX - 8} y={y + 3} textAnchor="end" fontSize="8" fill="var(--c-text-muted)">{pct}</text>;
-        })}
-        {/* Lines */}
-        <motion.path d={toPath(moodPts)} fill="none" stroke="#4ADE80" strokeWidth="2" strokeLinecap="round"
-          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1, delay: 0.5 }} />
-        <motion.path d={toPath(stressPts)} fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round"
-          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1, delay: 0.6 }} />
-        <motion.path d={toPath(energyPts)} fill="none" stroke="#818CF8" strokeWidth="2" strokeLinecap="round"
-          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1, delay: 0.7 }} />
-        {/* Dots */}
-        {moodPts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="3" fill="#4ADE80" />)}
-        {/* X-axis */}
-        {last7.map((e, i) => {
-          const x = padX + (i / Math.max(last7.length - 1, 1)) * chartW;
-          const d = new Date(e.date);
-          return <text key={e.id} x={x} y={h - 2} textAnchor="middle" fontSize="8" fill="var(--c-text-muted)">
-            {d.toLocaleDateString('en', { month: 'short', day: 'numeric' })}
-          </text>;
-        })}
-      </svg>
     </div>
   );
 }
 
 const ACTIONS = [
-  { href: '/check-in', label: 'Daily Check-in', desc: 'How are you feeling today?', icon: Heart, color: '#EF4444', bg: 'rgba(239,68,68,0.1)' },
-  { href: '/journal', label: 'Write Journal', desc: 'Reflect and express', icon: BookOpen, color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)' },
-  { href: '/coach', label: 'AI Coach', desc: 'Talk to your coach', icon: MessageCircle, color: '#4ADE80', bg: 'rgba(74,222,128,0.1)' },
-  { href: '/focus', label: 'Focus Session', desc: 'Deep work time', icon: Timer, color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
-  { href: '/journal', label: 'Voice Journal', desc: 'Speak your thoughts', icon: Mic, color: '#818CF8', bg: 'rgba(129,140,248,0.1)' },
+  { href: '/check-in', label: 'Daily Check-in', desc: 'Log mood', icon: Heart, color: '#EF4444' },
+  { href: '/journal', label: 'Write Journal', desc: 'Reflect', icon: BookOpen, color: '#8B5CF6' },
+  { href: '/coach', label: 'AI Coach', desc: 'Talk to AI', icon: MessageCircle, color: '#22C55E' },
+  { href: '/focus', label: 'Focus Session', desc: 'Timer', icon: Timer, color: '#F59E0B' },
+  { href: '/journal', label: 'Voice Journal', desc: 'Record', icon: Mic, color: '#3B82F6' },
 ];

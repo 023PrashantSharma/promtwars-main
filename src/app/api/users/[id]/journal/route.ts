@@ -9,8 +9,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
     const { id } = await params;
+
+    if (id && id.startsWith('local_')) {
+      return NextResponse.json([]);
+    }
+
+    await connectDB();
     const user = await User.findById(id, 'journalEntries').lean();
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     return NextResponse.json(user.journalEntries || []);
@@ -25,9 +30,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
     const { id } = await params;
     const entry = await request.json();
+
+    if (id && id.startsWith('local_')) {
+      return NextResponse.json(entry, { status: 201 });
+    }
+
+    await connectDB();
 
     const user = await User.findById(id);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -54,9 +64,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
     const { id } = await params;
     const { entryId } = await request.json();
+
+    if (id && id.startsWith('local_')) {
+      return NextResponse.json({ success: true });
+    }
+
+    await connectDB();
 
     await User.findByIdAndUpdate(id, {
       $pull: { journalEntries: { id: entryId } },
