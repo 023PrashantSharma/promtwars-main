@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { Poppins } from 'next/font/google';
+import NextTopLoader from 'nextjs-toploader';
 import './globals.css';
 import { ThemeProvider } from '@/providers/theme-provider';
-import { AppShell } from '@/components/layout/app-shell';
 
 const poppins = Poppins({
   variable: '--font-poppins',
@@ -36,9 +36,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${poppins.variable} h-full`} suppressHydrationWarning>
       <body className="min-h-full font-sans antialiased">
-        <ThemeProvider>
-          <AppShell>{children}</AppShell>
-        </ThemeProvider>
+        <NextTopLoader
+          color="#4ADE80"
+          height={3}
+          showSpinner={false}
+          shadow="0 0 10px rgba(74,222,128,0.4), 0 0 5px rgba(74,222,128,0.2)"
+        />
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
